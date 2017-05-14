@@ -1,0 +1,16 @@
+﻿<UserControl x:Class="AutoWaifu2.PathInput"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:AutoWaifu2"
+             mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="47.278">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition/>
+            <ColumnDefinition Width="28"/>
+        </Grid.ColumnDefinitions>
+        <Button VerticalContentAlignment="Center" Content=".." Margin="9,10,10,0" VerticalAlignment="Top" Grid.Column="1" Height="23" Click="FileButton_Click"/>
+        <TextBox TextWrapping="NoWrap" x:Name="PathTextBox" Height="23" Margin="10,10,0,0" VerticalAlignment="Top" TextChanged="PathTextBox_TextChanged"/>
+    </Grid>
+</UserControl>

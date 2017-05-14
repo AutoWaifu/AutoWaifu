@@ -1,0 +1,8 @@
+packages/
+*.psess
+*.vspx
+*.vs/
+bin/
+obj/
+AutoWaifu.Bot/
+AutoWaifu.Bot.UX/

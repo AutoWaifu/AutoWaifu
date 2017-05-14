@@ -1,0 +1,75 @@
+﻿<Window x:Class="AutoWaifu2.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:AutoWaifu2"
+        mc:Ignorable="d"
+        xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+        xmlns:xcad="http://schemas.xceed.com/wpf/xaml/avalondock"
+        Title="MainWindow" MinWidth="800" MinHeight="480">
+    <Grid>
+        <xcad:DockingManager>
+            <xcad:LayoutRoot>
+                <xcad:LayoutPanel Orientation="Horizontal">
+                    <!-- Input files -->
+                    <xcad:LayoutPanel>
+                        <xcad:LayoutAnchorablePane>
+                            <xcad:LayoutAnchorable Title="Input Files">
+                                <ListBox ItemsSource="{Binding PendingInputFiles}" />
+                            </xcad:LayoutAnchorable>
+                        </xcad:LayoutAnchorablePane>
+                    </xcad:LayoutPanel>
+
+                    <!-- Processing queue and log-->
+                    <xcad:LayoutPanel Orientation="Vertical">
+                        <xcad:LayoutAnchorablePane>
+                            <xcad:LayoutAnchorable Title="Processing Queue">
+                                <Grid Margin="0,0,1.667,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160*" MinWidth="160" MaxWidth="180"/>
+                                        <ColumnDefinition Width="593*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ListBox ItemsSource="{Binding ProcessingQueueFiles}" Grid.Column="1" Margin="5,10,9.333,10" />
+                                    <Button Content="Settings" Margin="0,10,10,0" VerticalAlignment="Top" Height="20" HorizontalAlignment="Right" Width="75" Click="SettingsButton_Click"/>
+                                    <Button Visibility="Hidden" Content="Restart All" Margin="0,0,5,10" Height="20" VerticalAlignment="Bottom" HorizontalAlignment="Right" Width="75"/>
+                                    <TextBlock Foreground="Gray" TextAlignment="Right" Margin="10,35,10,0" TextWrapping="Wrap" Text="{Binding TimeRemaining}" VerticalAlignment="Top" Height="20"/>
+                                </Grid>
+                            </xcad:LayoutAnchorable>
+                        </xcad:LayoutAnchorablePane>
+                        <xcad:LayoutAnchorablePane>
+                            <xcad:LayoutAnchorable Title="Log">
+                                <TabControl>
+                                    <TabItem Header="Info">
+                                        <local:LogPage x:Name="InfoLogPage" />
+                                    </TabItem>
+                                    <TabItem Header="Debug">
+                                        <local:LogPage x:Name="DebugLogPage" />
+                                    </TabItem>
+                                </TabControl>
+                            </xcad:LayoutAnchorable>
+                        </xcad:LayoutAnchorablePane>
+                    </xcad:LayoutPanel>
+
+
+                    <!-- Output files -->
+                    <xcad:LayoutPanel>
+                        <xcad:LayoutAnchorablePane>
+                            <xcad:LayoutAnchorable Title="Output Files">
+                                <ListView x:Name="OutputFilesList" ItemsSource="{Binding CompletedOutputFiles}" SelectionMode="Extended">
+                                    <ListView.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Add back to input queue" Click="OutputCtxMenuRestartItem_Click" />
+                                            <MenuItem Header="Show in Folder" Click="OutputCtxMenuOpenOutputFolder_Click" />
+                                        </ContextMenu>
+                                    </ListView.ContextMenu>
+                                </ListView>
+                            </xcad:LayoutAnchorable>
+                        </xcad:LayoutAnchorablePane>
+                    </xcad:LayoutPanel>
+                </xcad:LayoutPanel>
+            </xcad:LayoutRoot>
+        </xcad:DockingManager>
+        <Label Visibility="Hidden" x:Name="WaitingForTasksLbl" Content="Waiting for remaining tasks..." VerticalAlignment="Stretch" HorizontalAlignment="Stretch" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Background="White"/>
+    </Grid>
+</Window>

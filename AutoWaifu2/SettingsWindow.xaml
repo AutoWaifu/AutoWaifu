@@ -1,0 +1,133 @@
+﻿<Window x:Class="AutoWaifu2.SettingsWindow"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+      xmlns:local="clr-namespace:AutoWaifu2"
+      mc:Ignorable="d"
+        WindowStartupLocation="CenterOwner"
+      WindowStyle="ToolWindow"
+        ResizeMode="NoResize"
+      Title="SettingsPage" Width="521" Height="743.667">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="257*"/>
+            <RowDefinition Height="139*"/>
+            <RowDefinition Height="176*"/>
+            <RowDefinition Height="40.333"/>
+        </Grid.RowDefinitions>
+
+
+        <!-- File/folder inputs -->
+        <GroupBox Margin="10,10,9.667,11.333" Header="Files and Folders">
+            <Grid Grid.Column="0" Margin="0,0,0.667,3.333">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="133"/>
+                    <ColumnDefinition/>
+                </Grid.ColumnDefinitions>
+
+                <Label VerticalContentAlignment="Center" HorizontalContentAlignment="Right" Content="Input Folder" Grid.Column="0" Margin="0,3,3.333,0" Height="42" VerticalAlignment="Top" />
+                <local:PathInput x:Name="InputFolderPathInput" Grid.Column="1" Margin="6.667,0,0,0" Height="45" VerticalAlignment="Top" />
+
+                <Label VerticalContentAlignment="Center" HorizontalContentAlignment="Right" Content="Output Folder" Grid.Column="0" Height="45" Margin="0,50,3.333,0" VerticalAlignment="Top" />
+                <local:PathInput x:Name="OutputFolderPathInput" Grid.Column="1" Margin="6.667,50,0,0" Height="45" VerticalAlignment="Top" />
+                <local:PathInput x:Name="WaifuFolderPathInput" Grid.Column="1" Height="45" Margin="6.667,100,-0.333,0" VerticalAlignment="Top"/>
+                <Label VerticalContentAlignment="Center" HorizontalContentAlignment="Right" Content="Waifu2x Caffe Folder" Margin="0,100,4.333,0" VerticalAlignment="Top" Height="45"/>
+                <Label VerticalContentAlignment="Center" HorizontalContentAlignment="Right" Content="FFMPEG Folder" Margin="0,150,3.333,0" VerticalAlignment="Top" Height="45"/>
+                <local:PathInput x:Name="FfmpegFilePathInput" Grid.Column="1" Height="45" Margin="6.667,150,-0.333,0" VerticalAlignment="Top"/>
+            </Grid>
+        </GroupBox>
+
+
+
+
+
+        <GroupBox Header="Processing Options" Grid.Row="1" Margin="10,10,10,9.667">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="110"/>
+                    <ColumnDefinition/>
+                </Grid.ColumnDefinitions>
+                <Label HorizontalContentAlignment="Right" Content="Process Priority" Margin="1,72,10,0" VerticalAlignment="Top" Height="26"/>
+
+                <Label HorizontalContentAlignment="Right" Content="Thread Count" Margin="0,41,10,0" VerticalAlignment="Top" Height="26"/>
+
+
+                <Label HorizontalContentAlignment="Right" Content="Method" Margin="10,10,10,0" VerticalAlignment="Top" Height="26"/>
+                <ComboBox x:Name="Process_MethodCbx" Grid.Column="1" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Width="120" SelectionChanged="Process_MethodCbx_SelectionChanged"/>
+                <xctk:IntegerUpDown Value="{Binding Path=Model.MaxParallel}" x:Name="Process_ThreadCountIud" Height="25" Grid.Column="1" Margin="10,42,0,0" VerticalAlignment="Top" HorizontalAlignment="Left" Width="120" />
+                <ComboBox x:Name="Process_PriorityCbx" Grid.Column="1" HorizontalAlignment="Left" Margin="10,76,0,0" VerticalAlignment="Top" Width="120" SelectionChanged="Process_PriorityCbx_SelectionChanged"/>
+            </Grid>
+        </GroupBox>
+
+
+
+
+        <!-- Resolution resolver selection and editing -->
+        <GroupBox Grid.Row="2" Margin="10,9.333,10.667,9.667" Header="Upscale Options">
+            <Grid Margin="18,10,1,10.667" Grid.Row="2" Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="52"/>
+                    <RowDefinition/>
+                </Grid.RowDefinitions>
+                <ComboBox Grid.Row="0" x:Name="Res_CbResMode" Margin="10,10,0,0" HorizontalAlignment="Left" Width="122" Height="25" VerticalAlignment="Top" SelectionChanged="Res_CbResMode_SelectionChanged" />
+
+                <Grid Grid.Row="1" Margin="0,0,0,-0.333">
+
+                    <Grid Visibility="{Binding VisibilityMaxSizeResolutionMode}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="100"/>
+                            <ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <xctk:IntegerUpDown FormatString="N0" Value="{Binding Path=Model.MaxSizeResolution.MaxResolution.Width, Mode=TwoWay}" Grid.Row="0" Margin="8,10,0,0" Height="25" VerticalAlignment="Top" Grid.Column="1" HorizontalAlignment="Left" Width="110" />
+                        <xctk:IntegerUpDown FormatString="N0" Value="{Binding Path=Model.MaxSizeResolution.MaxResolution.Height, Mode=TwoWay}" Margin="8,40,0,0" Height="25" VerticalAlignment="Top" Grid.Column="1" HorizontalAlignment="Left" Width="110" />
+                        <Label Grid.Column="0" HorizontalContentAlignment="Right" Content="Max Width" Margin="10,8,10,0" VerticalAlignment="Top" Height="26"/>
+                        <Label Grid.Column="0" HorizontalContentAlignment="Right" Content="Max Height" Margin="10,40,10,0" VerticalAlignment="Top" Height="26"/>
+                    </Grid>
+
+
+                    <Grid Visibility="{Binding VisibilityMegapixelResolutionMode}" Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="187*" MaxWidth="150"/>
+                            <ColumnDefinition Width="236*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <xctk:IntegerUpDown Value="{Binding Path=Model.MegapixelResolution.DesiredMegapixels, Mode=TwoWay}" FormatString="N0" Grid.Column="1" Margin="11,10,0,0" Height="25" VerticalAlignment="Top" HorizontalAlignment="Left" Width="96" />
+                        <TextBlock TextAlignment="Right" TextWrapping="Wrap" Text="Target Resolution Size" Margin="10,9,10,0" VerticalAlignment="Top" Height="64"/>
+                        <TextBlock Grid.Column="1" Margin="112,14,9.667,0" TextWrapping="Wrap" Text="Megapixels" Height="16" VerticalAlignment="Top"/>
+
+
+                    </Grid>
+
+
+                    <Grid Visibility="{Binding VisibilityScaleFactorMode}" Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="36*" MaxWidth="150"/>
+                            <ColumnDefinition Width="47*"/>
+                        </Grid.ColumnDefinitions>
+                        <Label HorizontalContentAlignment="Right" Content="Scale Factor" Margin="10,9,9,0" VerticalAlignment="Top" Height="25"/>
+                        <xctk:DecimalUpDown Value="{Binding Path=Model.ScaleResolution.ScaleFactor, Mode=TwoWay}" FormatString="P1" Grid.Column="1" Width="110" Margin="12,10,0,0" HorizontalAlignment="Left" Height="25" VerticalAlignment="Top" />
+                    </Grid>
+
+                </Grid>
+
+            </Grid>
+        </GroupBox>
+
+        <Button Content="OK" Margin="0,0,10.667,10.667" Grid.Row="3" Height="20" VerticalAlignment="Bottom" HorizontalAlignment="Right" Width="75" Click="OkButton_Click"/>
+        <Button Content="Cancel" Margin="0,0,90.667,10.667" Grid.Row="3" HorizontalAlignment="Right" Width="75" Height="20" VerticalAlignment="Bottom" Click="CancelButton_Click"/>
+        <Button Visibility="Hidden" Content="Reset" Margin="18,0,0,10.667" Grid.Row="3" Height="20" VerticalAlignment="Bottom" HorizontalAlignment="Left" Width="75"/>
+
+
+
+
+
+
+
+
+
+
+
+    </Grid>
+</Window>
