@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
@@ -19,6 +20,8 @@ namespace AutoWaifu2
             InitializeComponent();
         }
 
+        DateTime _startTime = DateTime.Now;
+
         WaifuLoggerStream _logStream;
         public WaifuLoggerStream LogStream
         {
@@ -29,17 +32,32 @@ namespace AutoWaifu2
                 if (_logStream != null)
                     _logStream.LogWritten -= OnLogStream_LogWritten;
 
+                _logStream = value;
+
                 _logStream.LogWritten += OnLogStream_LogWritten;
             }
         }
 
-        public Dictionary<WaifuLogger.LogMessageType, Brush> MessageColorMap { get; set; }
+        public Dictionary<WaifuLogger.LogMessageType, Brush> MessageColorMap { get; set; } = new Dictionary<WaifuLogger.LogMessageType, Brush>
+        {
+            { WaifuLogger.LogMessageType.Info, new SolidColorBrush(Color.FromRgb(255,255,255)) },
+            { WaifuLogger.LogMessageType.Warning, new SolidColorBrush(Color.FromRgb(255, 255, 0)) },
+            { WaifuLogger.LogMessageType.ConfigWarning, new SolidColorBrush(Color.FromRgb(255, 255, 0)) },
+            { WaifuLogger.LogMessageType.Exception, new SolidColorBrush(Color.FromRgb(255, 0, 0)) },
+            { WaifuLogger.LogMessageType.ExternalError, new SolidColorBrush(Color.FromRgb(255, 0, 0)) },
+            { WaifuLogger.LogMessageType.LogicError, new SolidColorBrush(Color.FromRgb(255, 0, 0)) }
+        };
 
         private void OnLogStream_LogWritten(WaifuLogger.LogMessageType messageType, string logText)
         {
-            var para = new Paragraph(new Run($"{messageType}: {logText}") { Foreground=MessageColorMap[messageType] });
+            Dispatcher.Invoke(() =>
+            {
+                var time = DateTime.Now - _startTime;
 
-            TextLogDocument.Blocks.Add(para);
+                var para = new Paragraph(new Run($"{time.ToString("c")} {messageType}: {logText}") { Foreground = MessageColorMap[messageType] });
+
+                TextLogDocument.Blocks.Add(para);
+            });
         }
     }
 }

@@ -46,7 +46,11 @@ namespace AutoWaifu2
         {
             get
             {
-                return orderedItems[state].ToArray();
+                var items = orderedItems[state].ToArray();
+                if (items == null)
+                    items = new TaskItem[0];
+
+                return items;
             }
         }
 

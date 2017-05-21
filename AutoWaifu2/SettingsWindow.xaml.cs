@@ -153,7 +153,17 @@ namespace AutoWaifu2
                 var currentResMode = StringResizeModeMap[Res_CbResMode.SelectedValue as string];
 
                 if (newResMode != currentResMode)
-                    Res_CbResMode.SelectedIndex = StringResizeModeMap.Select(kvp => kvp.Value).ToList().IndexOf(newResMode);
+                    Res_CbResMode.SelectedIndex = StringResizeModeMap.Values.ToList().IndexOf(newResMode);
+
+
+
+                var newConvertMode = value.ConversionMode;
+                var currentConvertMode = StringConvertModeMap[Process_MethodCbx.SelectedValue as string];
+
+                if (newConvertMode != currentConvertMode)
+                    Process_MethodCbx.SelectedIndex = StringConvertModeMap.Values.ToList().IndexOf(newConvertMode);
+
+
 
                 InputFolderPathInput.Value = value.InputDir;
                 OutputFolderPathInput.Value = value.OutputDir;

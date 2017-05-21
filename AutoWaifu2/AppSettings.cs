@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Xml;
 using System.Xml.Serialization;
+using WaifuLog;
 
 namespace AutoWaifu2
 {
@@ -108,6 +109,7 @@ namespace AutoWaifu2
 
         public static AppSettings LoadFromFile(String filePath)
         {
+            WaifuLogger.Info($"Loading AppSettings from '{filePath}'");
             return JsonConvert.DeserializeObject<AppSettings>(File.ReadAllText(filePath));
         }
 
@@ -117,6 +119,7 @@ namespace AutoWaifu2
         /// <returns>An XML representation of the app settings.</returns>
         public void SaveToFile(string filePath)
         {
+            WaifuLogger.Info($"Saving AppSettings to '{filePath}'");
             string json = JsonConvert.SerializeObject(this, Newtonsoft.Json.Formatting.Indented);
             File.WriteAllText(filePath, json);
         }

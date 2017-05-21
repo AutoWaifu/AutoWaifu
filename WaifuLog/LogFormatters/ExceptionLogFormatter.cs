@@ -10,7 +10,9 @@ namespace WaifuLog.LogFormatters
     {
         public virtual string Format(string message, Exception e)
         {
-            return message;
+            string exceptionInfo = e.ToString();
+
+            return $"{message} Details: {exceptionInfo}";
         }
     }
 }

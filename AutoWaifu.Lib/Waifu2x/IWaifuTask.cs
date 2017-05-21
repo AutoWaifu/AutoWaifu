@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
@@ -22,6 +23,13 @@ namespace AutoWaifu.Lib.Waifu2x
         public abstract string InputFilePath { get; }
         
 
+        public abstract string TaskState { get; }
+        public event Action<string> TaskStateChanged;
+
+        protected void InvokeTaskStateChanged()
+        {
+            TaskStateChanged?.Invoke(TaskState);
+        }
 
 
         public abstract IEnumerable<IWaifuTask> SubTasks { get; }
@@ -40,9 +48,7 @@ namespace AutoWaifu.Lib.Waifu2x
         public event Action<IWaifuTask> TaskCompleted;
         public event Action<IWaifuTask, string> TaskFaulted;
 
-
-
-        public async Task<bool> StartTask(string waifu2xCaffePath, string ffmpegPath)
+        public async Task<bool> StartTask(string tempInputFolderPath, string tempOutputFolderPath, string waifu2xCaffePath, string ffmpegPath)
         {
             bool faulted = false;
 
@@ -63,7 +69,7 @@ namespace AutoWaifu.Lib.Waifu2x
             {
                 try
                 {
-                    taskSucceeded = await Start(waifu2xCaffePath, ffmpegPath);
+                    taskSucceeded = await Start(tempInputFolderPath, tempOutputFolderPath, waifu2xCaffePath, ffmpegPath);
                 }
                 catch (Exception e)
                 {
@@ -131,7 +137,7 @@ namespace AutoWaifu.Lib.Waifu2x
         }
 
 
-        protected abstract Task<bool> Start(string waifu2xCaffePath, string ffmpegPath);
+        protected abstract Task<bool> Start(string tempInputFolderPath, string tempOutputFolderPath, string waifu2xCaffePath, string ffmpegPath);
         protected abstract Task<bool> Cancel();
 
 

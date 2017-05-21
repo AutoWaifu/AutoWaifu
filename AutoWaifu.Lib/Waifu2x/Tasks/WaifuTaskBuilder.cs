@@ -24,13 +24,14 @@ namespace AutoWaifu.Lib.Waifu2x
 
             return ext == ".png" ||
                    ext == ".jpg" ||
-                   ext == ".jpeg";
+                   ext == ".jpeg" ||
+                   ext == ".gif";
         }
 
         public IWaifuTask TaskFor(string inputFilePath, string outputFilePath)
         {
-            if (Path.GetExtension(inputFilePath) != Path.GetExtension(outputFilePath))
-                throw new InvalidOperationException("Input and output file extensions do not match");
+            //if (Path.GetExtension(inputFilePath) != Path.GetExtension(outputFilePath))
+            //    throw new InvalidOperationException("Input and output file extensions do not match");
 
             if (!CanMakeTaskFor(inputFilePath))
                 throw new InvalidOperationException($"Cannot make IWaifuTask for '{inputFilePath}', file type not supported");
@@ -47,6 +48,9 @@ namespace AutoWaifu.Lib.Waifu2x
 
                 case ".png":
                     return new ImageTask(inputFilePath, outputFilePath, OutputResolutionResolver, ConvertMode);
+
+                case ".gif":
+                    return new GifTask(inputFilePath, outputFilePath, OutputResolutionResolver, ConvertMode);
 
                 default:
                     return null;

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -30,12 +31,21 @@ namespace AutoWaifu2
                 {
                     matchingSubString += path[i];
                 }
+                else
+                {
+                    break;
+                }
             }
 
             if (matchingSubString.Length != 0)
                 path = path.Replace(matchingSubString, string.Empty);
 
-            return path.Trim(new[] { '/', '\\' });
+            path = path.Trim(new[] { '/', '\\' });
+
+            if (Path.IsPathRooted(path))
+                Debugger.Break();
+
+            return path;
         }
 
         public static string CreateInput(string path)

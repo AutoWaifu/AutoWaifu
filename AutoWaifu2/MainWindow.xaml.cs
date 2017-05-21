@@ -4,7 +4,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -15,6 +17,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Threading;
+using WaifuLog;
 
 namespace AutoWaifu2
 {
@@ -26,6 +29,30 @@ namespace AutoWaifu2
         public MainWindow()
         {
             InitializeComponent();
+
+            RootConfig.AppDispatcher = this.Dispatcher;
+
+            string logFile = "log.txt";
+
+            File.AppendAllText(logFile, $"\n\n\n========== Log started for {DateTime.Now}\n");
+
+            WaifuLogger.LogWritten += (t, m) =>
+            {
+                File.AppendAllText("log.txt", m + '\n');
+            };
+
+            var infoLogStream = new WaifuLoggerStream
+            {
+                MessageFilter = WaifuLogger.LogMessageType.ConfigWarning | WaifuLogger.LogMessageType.ExternalError | WaifuLogger.LogMessageType.LogicError | WaifuLogger.LogMessageType.Warning
+            };
+
+            var debugLogStream = new WaifuLoggerStream
+            {
+                MessageFilter = WaifuLogger.LogMessageType.All
+            };
+
+            InfoLogPage.LogStream = infoLogStream;
+            DebugLogPage.LogStream = debugLogStream;
 
             this.Closing += MainWindow_Closing;
 
@@ -104,11 +131,13 @@ namespace AutoWaifu2
         private void SettingsButton_Click(object sender, RoutedEventArgs e)
         {
             var settingsWindow = new SettingsWindow();
+            settingsWindow.Owner = this;
             var settingsCopy = ViewModel.Settings.Copy();
             settingsWindow.ViewModel = new AppSettingsViewModel(settingsCopy);
 
             if (settingsWindow.ShowDialog().Value)
             {
+                AppSettings.SetMainSettings(settingsCopy);
                 ViewModel.Settings = settingsCopy;
                 ViewModel.Settings.SaveToFile(RootConfig.SettingsFilePath);
             }
@@ -119,19 +148,16 @@ namespace AutoWaifu2
             if (MessageBoxResult.Yes != MessageBox.Show("Are you sure you want to restart these tasks? The current output files will be deleted.", "", MessageBoxButton.YesNo))
                 return;
 
-            var filesToRestart = OutputFilesList.SelectedItems.Cast<string>();
-            var items = filesToRestart.Select((f) => ViewModel.TaskItems[f]);
+            var items = OutputFilesList.SelectedItems.Cast<TaskItem>();
             foreach (var item in items)
                 File.Delete(item.OutputPath);
         }
 
         private void OutputCtxMenuOpenOutputFolder_Click(object sender, RoutedEventArgs e)
         {
-            var selectedFile = OutputFilesList.SelectedItem as string;
-            if (selectedFile == null)
+            var task = OutputFilesList.SelectedItem as TaskItem;
+            if (task == null)
                 return;
-
-            var task = ViewModel.TaskItems[selectedFile];
 
             ProcessStartInfo psi = new ProcessStartInfo();
             psi.FileName = "explorer";
@@ -140,5 +166,74 @@ namespace AutoWaifu2
             Process.Start(psi);
         }
 
+        private void Window_PreviewDrop(object sender, DragEventArgs e)
+        {
+
+        }
+
+        private void Window_Drop(object sender, DragEventArgs e)
+        {
+            Task.Run(async () =>
+            {
+                if (e.Data.GetDataPresent(DataFormats.Html))
+                {
+                    string html = e.Data.GetData(DataFormats.Html) as string;
+
+                    html = html.Replace('\n', ' ');
+                    html = html.Replace('\r', ' ');
+
+                    var matchImage = new Regex(@"<img (.*)\/?>");
+                    var matchSrc = new Regex("src=[\"']([\\w:\\/\\\\\\.\\d-=\\?]*)");
+
+                    var imageMatch = matchImage.Match(html);
+                    var img = imageMatch.Groups[1].Value;
+
+                    var srcMatch = matchSrc.Match(img);
+                    var src = srcMatch.Groups[1].Value;
+
+                    var type = Path.GetExtension(src);
+                    switch (type)
+                    {
+                        case ".png":
+                            break;
+
+                        case ".jpeg":
+                            break;
+
+                        case ".jpg":
+                            break;
+
+                        case ".gif":
+                            break;
+
+                        default:
+                            return;
+                    }
+
+
+                    string tempFileName = Path.GetFileName(src) + '-' + Guid.NewGuid().ToString();
+                    string tempFilePath = Path.Combine(AppSettings.Main.TempDir, tempFileName);
+
+                    WebClient client = new WebClient();
+                    await client.DownloadFileTaskAsync(src, tempFilePath);
+
+                    string newFilePath = Path.GetFullPath(Path.Combine(AppSettings.Main.InputDir, Path.GetFileName(src)));
+                    if (File.Exists(newFilePath))
+                        File.Delete(newFilePath);
+
+                    File.Move(tempFilePath, newFilePath);
+                }
+            });
+
+            if (e.Data.GetDataPresent(DataFormats.Bitmap))
+            {
+
+            }
+
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+
+            }
+        }
     }
 }

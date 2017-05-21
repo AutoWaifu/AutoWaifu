@@ -2,6 +2,7 @@
 using PropertyChanged;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
@@ -80,7 +81,5 @@ namespace AutoWaifu2
             get { return Model.MaxParallel; }
             set { Model.MaxParallel = value; }
         }
-
-
     }
 }

@@ -53,7 +53,9 @@ namespace AutoWaifu2
 
         public MainWindowViewModel()
         {
-            if (!File.Exists(RootConfig.SettingsFilePath) || true)
+            WaifuLogger.Info($"Loading {RootConfig.SettingsFilePath} as the settings data");
+
+            if (!File.Exists(RootConfig.SettingsFilePath))
             {
                 Settings = new AppSettings();
                 Settings.SaveToFile(RootConfig.SettingsFilePath);
@@ -93,12 +95,12 @@ namespace AutoWaifu2
             }
 
 
-            TaskItems.AddedInputItem += (item) => PendingInputFiles.Add(item.RelativeFilePath);
-            TaskItems.AddedItemProcessing += (item) => ProcessingQueueFiles.Add(item.RelativeFilePath);
-            TaskItems.AddedOutputItem += (item) => CompletedOutputFiles.Add(item.RelativeFilePath);
-            TaskItems.RemovedInputItem += (item) => PendingInputFiles.Remove(item.RelativeFilePath);
-            TaskItems.RemovedItemProcessing += (item) => ProcessingQueueFiles.Remove(item.RelativeFilePath);
-            TaskItems.RemovedOutputItem += (item) => CompletedOutputFiles.Remove(item.RelativeFilePath);
+            TaskItems.AddedInputItem += (item) => PendingInputFiles.Add(item);
+            TaskItems.AddedItemProcessing += (item) => ProcessingQueueFiles.Add(item);
+            TaskItems.AddedOutputItem += (item) => CompletedOutputFiles.Add(item);
+            TaskItems.RemovedInputItem += (item) => PendingInputFiles.Remove(item);
+            TaskItems.RemovedItemProcessing += (item) => ProcessingQueueFiles.Remove(item);
+            TaskItems.RemovedOutputItem += (item) => CompletedOutputFiles.Remove(item);
 
 
             DispatcherTimer updateTimeRemainingTimer = new DispatcherTimer();
@@ -109,11 +111,14 @@ namespace AutoWaifu2
 
         private void WarnPathRename(string obj)
         {
+            WaifuLogger.Warning($"A file or folder '{obj}' was renamed, this behavior is not accounted for and may cause instability");
             MessageBox.Show("A file or folder was renamed; this might interfere with AutoWaifu operations! Please close AutoWaifu and complete your renaming, and restart it when you are done.");
         }
 
         private void InitInputEnumeration()
         {
+            WaifuLogger.Info("Initializing Input directory enumeration");
+
             if (inputFolderEnumeration != null)
             {
                 inputFolderEnumeration.FileAdded -= InputFolderEnumeration_FileAdded;
@@ -123,7 +128,7 @@ namespace AutoWaifu2
             }
 
             inputFolderEnumeration = new FolderEnumeration(AppSettings.Main.InputDir);
-            inputFolderEnumeration.Filter = ".jpg|.png|.jpeg";
+            inputFolderEnumeration.Filter = ".jpg|.jpeg|.png|.gif";
 
             inputFolderEnumeration.FileAdded += InputFolderEnumeration_FileAdded;
             inputFolderEnumeration.FolderAdded += InputFolderEnumeration_FolderAdded;
@@ -133,6 +138,8 @@ namespace AutoWaifu2
 
         private void InitOutputEnumeration()
         {
+            WaifuLogger.Info("Initializing Output directory enumeration");
+
             if (outputFolderEnumeration != null)
             {
                 outputFolderEnumeration.FileRemoved -= OutputFolderEnumeration_FileRemoved;
@@ -142,6 +149,7 @@ namespace AutoWaifu2
             }
 
             outputFolderEnumeration = new FolderEnumeration(AppSettings.Main.OutputDir);
+            outputFolderEnumeration.Filter = ".jpg|.jpeg|.png|.mp4";
 
             outputFolderEnumeration.FileRemoved += OutputFolderEnumeration_FileRemoved;
             outputFolderEnumeration.FolderRemoved += OutputFolderEnumeration_FolderRemoved;
@@ -155,9 +163,9 @@ namespace AutoWaifu2
 
         #region ViewModel Properties
 
-        public ThreadObservableCollection<string> PendingInputFiles { get; private set; }
-        public ThreadObservableCollection<string> ProcessingQueueFiles { get; private set; }
-        public ThreadObservableCollection<string> CompletedOutputFiles { get; private set; }
+        public ThreadObservableCollection<TaskItem> PendingInputFiles { get; private set; }
+        public ThreadObservableCollection<TaskItem> ProcessingQueueFiles { get; private set; }
+        public ThreadObservableCollection<TaskItem> CompletedOutputFiles { get; private set; }
 
         AppSettings _settings;
         public AppSettings Settings
@@ -253,12 +261,14 @@ namespace AutoWaifu2
 
         public void Initialize(Dispatcher dispatcher)
         {
+            WaifuLogger.Info("Initializing window ViewModel - Load Input/Output file diffs");
+
             InitInputEnumeration();
             InitOutputEnumeration();
 
-            PendingInputFiles = new ThreadObservableCollection<string>(dispatcher);
-            ProcessingQueueFiles = new ThreadObservableCollection<string>(dispatcher);
-            CompletedOutputFiles = new ThreadObservableCollection<string>(dispatcher);
+            PendingInputFiles = new ThreadObservableCollection<TaskItem>(dispatcher);
+            ProcessingQueueFiles = new ThreadObservableCollection<TaskItem>(dispatcher);
+            CompletedOutputFiles = new ThreadObservableCollection<TaskItem>(dispatcher);
 
             convertTaskQueue = new TaskQueue();
             convertTaskQueue.QueueLength = AppSettings.Main.MaxParallel;
@@ -281,25 +291,37 @@ namespace AutoWaifu2
             var filesToProcess = missingFilesInOutput.Select(f => AppRelativePath.CreateInput(f.AbsolutePath));
             var preProcessedFiles = outputFolderEnumeration.FilePaths;
 
-
-            foreach (var completed in preProcessedFiles)
+            var inputFiles = inputFolderEnumeration.RelativeFilePaths.ToArray();
+            foreach (var input in inputFiles)
             {
-                TaskItems.Add(new TaskItem
-                {
-                    RelativeFilePath = AppRelativePath.Create(completed),
-                    RunningTask = null,
-                    State = TaskItemState.Done
-                });
+                var newTaskItem = new TaskItem { RelativeFilePath = input };
+                if (File.Exists(Path.Combine(outputFolderEnumeration.FolderPath, newTaskItem.OutputPath)))
+                    newTaskItem.State = TaskItemState.Done;
+                else
+                    newTaskItem.State = TaskItemState.Pending;
+
+                TaskItems.Add(newTaskItem);
             }
 
-            foreach (var input in filesToProcess)
-            {
-                TaskItems.Add(new TaskItem
-                {
-                    RelativeFilePath = AppRelativePath.Create(input),
-                    State = TaskItemState.Pending
-                });
-            }
+
+            //foreach (var completed in preProcessedFiles)
+            //{
+            //    TaskItems.Add(new TaskItem
+            //    {
+            //        RelativeFilePath = AppRelativePath.Create(completed),
+            //        RunningTask = null,
+            //        State = TaskItemState.Done
+            //    });
+            //}
+
+            //foreach (var input in filesToProcess)
+            //{
+            //    TaskItems.Add(new TaskItem
+            //    {
+            //        RelativeFilePath = AppRelativePath.Create(input),
+            //        State = TaskItemState.Pending
+            //    });
+            //}
         }
 
 
@@ -333,39 +355,49 @@ namespace AutoWaifu2
             {
                 while (continueProcessing)
                 {
-                    var inputItems = TaskItems[TaskItemState.Pending];
-                    if (convertTaskQueue.CanQueueTask && inputItems.Length > 0)
+                    try
                     {
-                        var nextTaskItem = TaskItems[TaskItemState.Pending].First();
-                        var builder = new WaifuTaskBuilder(OutputResolutionResolver, AppSettings.Main.ConversionMode);
-                        IWaifuTask nextTask = builder.TaskFor(nextTaskItem.InputPath, nextTaskItem.OutputPath);
-
-                        if (convertTaskQueue.TryQueueTask(nextTask))
+                        var inputItems = TaskItems[TaskItemState.Pending];
+                        if (convertTaskQueue.CanQueueTask && inputItems.Length > 0)
                         {
-                            nextTaskItem.State = TaskItemState.Processing;
+                            var nextTaskItem = TaskItems[TaskItemState.Pending].First();
+                            var builder = new WaifuTaskBuilder(OutputResolutionResolver, AppSettings.Main.ConversionMode);
+                            IWaifuTask nextTask = builder.TaskFor(nextTaskItem.InputPath, nextTaskItem.OutputPath);
 
-                            DateTime taskStartTime = DateTime.Now;
-
-                            nextTask.TaskCompleted += (task) =>
+                            if (convertTaskQueue.TryQueueTask(nextTask))
                             {
-                                convertTaskQueue.TryCompleteTask(nextTask);
-                                nextTaskItem.State = TaskItemState.Done;
+                                nextTaskItem.State = TaskItemState.Processing;
 
-                                DateTime taskEndTime = DateTime.Now;
-                                _convertTimeHistory.Add(taskEndTime - taskStartTime);
-                                if (_convertTimeHistory.Count > _maxConvertTimeHistoryCount)
-                                    _convertTimeHistory.RemoveAt(0);
+                                DateTime taskStartTime = DateTime.Now;
 
-                                _lastTaskCompleteTime = taskEndTime;
-                            };
+                                WaifuLogger.Info($"Starting task for {nextTaskItem.RelativeFilePath}");
 
-                            nextTask.TaskFaulted += (task, msg) =>
-                            {
-                                WaifuLogger.LogicError($"The task for {task.InputFilePath} failed to complete with the following message: {msg}");
-                            };
-                            
-                            nextTask.StartTask(AppSettings.Main.Waifu2xCaffeDir, AppSettings.Main.FfmpegDir);
+                                nextTask.TaskCompleted += (task) =>
+                                {
+                                    convertTaskQueue.TryCompleteTask(nextTask);
+                                    nextTaskItem.State = TaskItemState.Done;
+
+                                    DateTime taskEndTime = DateTime.Now;
+                                    _convertTimeHistory.Add(taskEndTime - taskStartTime);
+                                    if (_convertTimeHistory.Count > _maxConvertTimeHistoryCount)
+                                        _convertTimeHistory.RemoveAt(0);
+
+                                    _lastTaskCompleteTime = taskEndTime;
+                                };
+
+                                nextTask.TaskFaulted += (task, msg) =>
+                                {
+                                    WaifuLogger.LogicError($"The task for {task.InputFilePath} failed to complete with the following message: {msg}");
+                                };
+
+                                nextTask.StartTask(Settings.TempDirInput, Settings.TempDirOutput, Settings.Waifu2xCaffeDir, Path.Combine(Settings.FfmpegDir, "ffmpeg.exe"));
+                            }
                         }
+                    }
+                    catch (Exception e)
+                    {
+                        WaifuLogger.Exception("An unhandled top-level exception occurred while queuing tasks", e);
+                        await Task.Delay(1000);
                     }
 
                     await Task.Delay(10);
@@ -391,7 +423,8 @@ namespace AutoWaifu2
             }
             catch (Exception e)
             {
-
+                WaifuLogger.LogicError($"An error occurred while trying to stop processing tasks: {e.Message}");
+                WaifuLogger.Exception(e);
             }
         }
 

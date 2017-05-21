@@ -1,4 +1,5 @@
-﻿using PropertyChanged;
+﻿using Microsoft.WindowsAPICodePack.Dialogs;
+using PropertyChanged;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -87,11 +88,12 @@ namespace AutoWaifu2
 
                 case PathType.Folder:
                     {
-                        var ofd = new System.Windows.Forms.FolderBrowserDialog();
-                        ofd.RootFolder = Environment.SpecialFolder.DesktopDirectory;
-                        if (ofd.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                        var ofd = new CommonOpenFileDialog();
+                        ofd.IsFolderPicker = true;
+                        ofd.InitialDirectory = Value;
+                        if (ofd.ShowDialog() == CommonFileDialogResult.Ok)
                         {
-                            resultFiles = new string[] { ofd.SelectedPath };
+                            resultFiles = new string[] { ofd.FileName };
                         }
                         break;
                     }

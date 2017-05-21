@@ -46,7 +46,7 @@ namespace AutoWaifu.Lib.FileSystem
             string[] allowedExtensions = Filter.Split('|');
 
             string fileExtension = Path.GetExtension(file);
-            return allowedExtensions.Any(ext => $".{ext}".ToLower() == fileExtension);
+            return allowedExtensions.Any(ext => $".{ext.Trim('.')}".ToLower() == fileExtension.ToLower());
         }
 
         private void Watcher_Renamed(object sender, RenamedEventArgs e)
@@ -54,7 +54,7 @@ namespace AutoWaifu.Lib.FileSystem
             var ext = Path.GetExtension(e.FullPath);
             if (ext.Length == 0)
                 FolderRenamed?.Invoke(e.FullPath);
-            else
+            else if (PassesFilter(e.FullPath))
                 FileRenamed?.Invoke(e.FullPath);
         }
 
@@ -63,7 +63,7 @@ namespace AutoWaifu.Lib.FileSystem
             string ext = Path.GetExtension(e.FullPath);
             if (ext.Length == 0)
                 FolderRemoved?.Invoke(e.FullPath);
-            else
+            else if (PassesFilter(e.FullPath))
                 FileRemoved?.Invoke(e.FullPath);
         }
 
@@ -73,7 +73,7 @@ namespace AutoWaifu.Lib.FileSystem
 
             if (ext.Length == 0)
                 FolderAdded?.Invoke(e.FullPath);
-            else
+            else if (PassesFilter(e.FullPath))
                 FileAdded?.Invoke(e.FullPath);
         }
 
@@ -89,7 +89,7 @@ namespace AutoWaifu.Lib.FileSystem
         public event Action<string> FolderRenamed;
 
 
-        public IEnumerable<string> FilePaths => Directory.EnumerateFiles(FolderPath, "*", SearchOption.AllDirectories);
+        public IEnumerable<string> FilePaths => Directory.EnumerateFiles(FolderPath, "*", SearchOption.AllDirectories).Where(p => PassesFilter(p));
         public IEnumerable<string> FolderPaths => Directory.EnumerateDirectories(FolderPath, "*", SearchOption.AllDirectories);
 
         public IEnumerable<string> RelativeFilePaths => FilePaths.Select(p => p.Replace(FolderPath, string.Empty).Trim('/', '\\'));

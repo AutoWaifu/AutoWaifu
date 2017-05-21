@@ -7,7 +7,13 @@
         mc:Ignorable="d"
         xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
         xmlns:xcad="http://schemas.xceed.com/wpf/xaml/avalondock"
-        Title="MainWindow" MinWidth="800" MinHeight="480">
+        Title="MainWindow" MinWidth="800" MinHeight="480"
+        AllowDrop="True" PreviewDrop="Window_PreviewDrop" Drop="Window_Drop">
+    <Window.Resources>
+        <DataTemplate x:Key="TaskItemTemplate">
+            <Label Margin="0" Content="{Binding TaskState}" />
+        </DataTemplate>
+    </Window.Resources>
     <Grid>
         <xcad:DockingManager>
             <xcad:LayoutRoot>
@@ -16,7 +22,7 @@
                     <xcad:LayoutPanel>
                         <xcad:LayoutAnchorablePane>
                             <xcad:LayoutAnchorable Title="Input Files">
-                                <ListBox ItemsSource="{Binding PendingInputFiles}" />
+                                <ListBox ItemsSource="{Binding PendingInputFiles}" ItemTemplate="{StaticResource TaskItemTemplate}" />
                             </xcad:LayoutAnchorable>
                         </xcad:LayoutAnchorablePane>
                     </xcad:LayoutPanel>
@@ -30,8 +36,8 @@
                                         <ColumnDefinition Width="160*" MinWidth="160" MaxWidth="180"/>
                                         <ColumnDefinition Width="593*"/>
                                     </Grid.ColumnDefinitions>
-                                    <ListBox ItemsSource="{Binding ProcessingQueueFiles}" Grid.Column="1" Margin="5,10,9.333,10" />
-                                    <Button Content="Settings" Margin="0,10,10,0" VerticalAlignment="Top" Height="20" HorizontalAlignment="Right" Width="75" Click="SettingsButton_Click"/>
+                                    <ListBox ItemsSource="{Binding ProcessingQueueFiles}" ItemTemplate="{StaticResource TaskItemTemplate}" Grid.Column="1" Margin="5,10,9.333,10" />
+                                    <Button Content="Settings" Margin="0,10,75,0" VerticalAlignment="Top" Height="20" HorizontalAlignment="Right" Width="75" Click="SettingsButton_Click"/>
                                     <Button Visibility="Hidden" Content="Restart All" Margin="0,0,5,10" Height="20" VerticalAlignment="Bottom" HorizontalAlignment="Right" Width="75"/>
                                     <TextBlock Foreground="Gray" TextAlignment="Right" Margin="10,35,10,0" TextWrapping="Wrap" Text="{Binding TimeRemaining}" VerticalAlignment="Top" Height="20"/>
                                 </Grid>
@@ -41,10 +47,18 @@
                             <xcad:LayoutAnchorable Title="Log">
                                 <TabControl>
                                     <TabItem Header="Info">
-                                        <local:LogPage x:Name="InfoLogPage" />
+                                        <Frame>
+                                            <Frame.Content>
+                                                <local:LogPage x:Name="InfoLogPage" />
+                                            </Frame.Content>
+                                        </Frame>
                                     </TabItem>
                                     <TabItem Header="Debug">
-                                        <local:LogPage x:Name="DebugLogPage" />
+                                        <Frame>
+                                            <Frame.Content>
+                                                <local:LogPage x:Name="DebugLogPage" />
+                                            </Frame.Content>
+                                        </Frame>
                                     </TabItem>
                                 </TabControl>
                             </xcad:LayoutAnchorable>
@@ -56,7 +70,7 @@
                     <xcad:LayoutPanel>
                         <xcad:LayoutAnchorablePane>
                             <xcad:LayoutAnchorable Title="Output Files">
-                                <ListView x:Name="OutputFilesList" ItemsSource="{Binding CompletedOutputFiles}" SelectionMode="Extended">
+                                <ListView x:Name="OutputFilesList" ItemsSource="{Binding CompletedOutputFiles}" ItemTemplate="{StaticResource TaskItemTemplate}" SelectionMode="Extended">
                                     <ListView.ContextMenu>
                                         <ContextMenu>
                                             <MenuItem Header="Add back to input queue" Click="OutputCtxMenuRestartItem_Click" />

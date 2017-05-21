@@ -37,6 +37,18 @@ namespace WaifuLog
 
 
 
+        public static Dictionary<LogMessageType, List<string>> LogHistory { get; } = new Dictionary<LogMessageType, List<string>>
+        {
+            { LogMessageType.Info, new List<string>() },
+            { LogMessageType.ConfigWarning, new List<string>() },
+            { LogMessageType.Warning, new List<string>() },
+            { LogMessageType.LogicError, new List<string>() },
+            { LogMessageType.ExternalError, new List<string>() },
+            { LogMessageType.Exception, new List<string>() }
+        };
+
+
+
         public static void SetFormatter<T>(T formatter) where T : class
         {
             if (formatter == null)
@@ -51,38 +63,49 @@ namespace WaifuLog
 
         public static T GetFormatter<T>() where T : class
         {
-            return Formatters.SingleOrDefault(kvp => kvp.Value.GetType() == typeof(T)) as T;
+            object searchResult = Formatters.SingleOrDefault(kvp => kvp.Value.GetType().IsAssignableFrom(typeof(T))).Value;
+            return searchResult as T;
         }
 
 
         public static void Info(string msg)
         {
             var formatter = GetFormatter<InfoLogFormatter>();
-            LogWritten?.Invoke(LogMessageType.Info, formatter.Format(msg));
+            string formatted = formatter.Format(msg);
+            LogWritten?.Invoke(LogMessageType.Info, formatted);
+            LogHistory[LogMessageType.Info].Add(formatted);
         }
 
         public static void Warning(string warning)
         {
             var formatter = GetFormatter<WarningLogFormatter>();
-            LogWritten?.Invoke(LogMessageType.Warning, formatter.Format(warning));
+            var formatted = formatter.Format(warning);
+            LogWritten?.Invoke(LogMessageType.Warning, formatted);
+            LogHistory[LogMessageType.Warning].Add(formatted);
         }
 
         public static void LogicError(string error)
         {
             var formatter = GetFormatter<LogicErrorFormatter>();
-            LogWritten?.Invoke(LogMessageType.LogicError, formatter.Format(error));
+            var formatted = formatter.Format(error);
+            LogWritten?.Invoke(LogMessageType.LogicError, formatted);
+            LogHistory[LogMessageType.LogicError].Add(formatted);
         }
 
         public static void ExternalError(string error)
         {
             var formatter = GetFormatter<ExternalErrorLogFormatter>();
-            LogWritten?.Invoke(LogMessageType.ExternalError, formatter.Format(error));
+            var formatted = formatter.Format(error);
+            LogWritten?.Invoke(LogMessageType.ExternalError, formatted);
+            LogHistory[LogMessageType.ExternalError].Add(formatted);
         }
 
         public static void ConfigWarning(string warning)
         {
             var formatter = GetFormatter<ConfigWarningLogFormatter>();
-            LogWritten?.Invoke(LogMessageType.ConfigWarning, formatter.Format(warning));
+            var formatted = formatter.Format(warning);
+            LogWritten?.Invoke(LogMessageType.ConfigWarning, formatted);
+            LogHistory[LogMessageType.ConfigWarning].Add(formatted);
         }
 
 
@@ -91,14 +114,15 @@ namespace WaifuLog
 
         public static void Exception(Exception e)
         {
-            var formatter = GetFormatter<ExceptionLogFormatter>();
-            LogWritten?.Invoke(LogMessageType.Exception, formatter.Format(null, e));
+            Exception(null, e);
         }
 
         public static void Exception(string msg, Exception e)
         {
             var formatter = GetFormatter<ExceptionLogFormatter>();
-            LogWritten?.Invoke(LogMessageType.Exception, formatter.Format(msg, e));
+            var formatted = formatter.Format(msg, e);
+            LogWritten?.Invoke(LogMessageType.Exception, formatted);
+            LogHistory[LogMessageType.Exception].Add(formatted);
         }
 
 
