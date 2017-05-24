@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -22,7 +23,11 @@ namespace AutoWaifu.Lib.Cui.Ffmpeg
         public override string GetCuiParams(string inputImageNameFormat, string outputFilePath)
         {
             List<string> paramParts = new List<string>();
-            paramParts.Add($"-r {this.OutputFramerate}");
+
+            if (Path.GetExtension(inputImageNameFormat).ToLower() == ".png")
+                paramParts.Add($"-framerate {this.OutputFramerate}");
+            else
+                paramParts.Add($"-r {this.OutputFramerate}");
 
             paramParts.Add($"-i \"{inputImageNameFormat}\"");
 

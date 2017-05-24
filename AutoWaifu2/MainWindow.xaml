@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:AutoWaifu2"
+        xmlns:mk="clr-namespace:WPFMediaKit.DirectShow.Controls;assembly=WPFMediaKit"
         mc:Ignorable="d"
         xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
         xmlns:xcad="http://schemas.xceed.com/wpf/xaml/avalondock"
@@ -19,16 +20,14 @@
             <xcad:LayoutRoot>
                 <xcad:LayoutPanel Orientation="Horizontal">
                     <!-- Input files -->
-                    <xcad:LayoutPanel>
-                        <xcad:LayoutAnchorablePane>
-                            <xcad:LayoutAnchorable Title="Input Files">
-                                <ListBox ItemsSource="{Binding PendingInputFiles}" ItemTemplate="{StaticResource TaskItemTemplate}" />
-                            </xcad:LayoutAnchorable>
-                        </xcad:LayoutAnchorablePane>
-                    </xcad:LayoutPanel>
+                    <xcad:LayoutAnchorablePane>
+                        <xcad:LayoutAnchorable Title="Input Files">
+                            <ListBox ItemsSource="{Binding PendingInputFiles}" ItemTemplate="{StaticResource TaskItemTemplate}" />
+                        </xcad:LayoutAnchorable>
+                    </xcad:LayoutAnchorablePane>
 
                     <!-- Processing queue and log-->
-                    <xcad:LayoutPanel Orientation="Vertical">
+                    <xcad:LayoutAnchorablePaneGroup Orientation="Vertical">
                         <xcad:LayoutAnchorablePane>
                             <xcad:LayoutAnchorable Title="Processing Queue">
                                 <Grid Margin="0,0,1.667,0">
@@ -44,6 +43,20 @@
                             </xcad:LayoutAnchorable>
                         </xcad:LayoutAnchorablePane>
                         <xcad:LayoutAnchorablePane>
+                            <xcad:LayoutAnchorable Title="Media" IsVisible="False">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+
+                                        <ColumnDefinition Width="63*"/>
+                                        <ColumnDefinition Width="5"/>
+                                        <ColumnDefinition Width="172*"/>
+
+                                    </Grid.ColumnDefinitions>
+                                    <ListBox x:Name="MediaViewer_MediaList" Grid.Column="0" ItemsSource="{Binding TaskItems}" ItemTemplate="{StaticResource TaskItemTemplate}" Margin="0,0,0.334,0.333" SelectionChanged="MediaViewListBox_SelectionChanged" />
+                                    <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Width="Auto" />
+                                    <mk:MediaUriElement x:Name="MediaViewer_MediaPlayer" Loop="True" Grid.Column="2" />
+                                </Grid>
+                            </xcad:LayoutAnchorable>
                             <xcad:LayoutAnchorable Title="Log">
                                 <TabControl>
                                     <TabItem Header="Info">
@@ -63,24 +76,22 @@
                                 </TabControl>
                             </xcad:LayoutAnchorable>
                         </xcad:LayoutAnchorablePane>
-                    </xcad:LayoutPanel>
+                    </xcad:LayoutAnchorablePaneGroup>
 
 
                     <!-- Output files -->
-                    <xcad:LayoutPanel>
-                        <xcad:LayoutAnchorablePane>
-                            <xcad:LayoutAnchorable Title="Output Files">
-                                <ListView x:Name="OutputFilesList" ItemsSource="{Binding CompletedOutputFiles}" ItemTemplate="{StaticResource TaskItemTemplate}" SelectionMode="Extended">
-                                    <ListView.ContextMenu>
-                                        <ContextMenu>
-                                            <MenuItem Header="Add back to input queue" Click="OutputCtxMenuRestartItem_Click" />
-                                            <MenuItem Header="Show in Folder" Click="OutputCtxMenuOpenOutputFolder_Click" />
-                                        </ContextMenu>
-                                    </ListView.ContextMenu>
-                                </ListView>
-                            </xcad:LayoutAnchorable>
-                        </xcad:LayoutAnchorablePane>
-                    </xcad:LayoutPanel>
+                    <xcad:LayoutAnchorablePane>
+                        <xcad:LayoutAnchorable Title="Output Files">
+                            <ListView x:Name="OutputFilesList" ItemsSource="{Binding CompletedOutputFiles}" ItemTemplate="{StaticResource TaskItemTemplate}" SelectionMode="Extended">
+                                <ListView.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Add back to input queue" Click="OutputCtxMenuRestartItem_Click" />
+                                        <MenuItem Header="Show in Folder" Click="OutputCtxMenuOpenOutputFolder_Click" />
+                                    </ContextMenu>
+                                </ListView.ContextMenu>
+                            </ListView>
+                        </xcad:LayoutAnchorable>
+                    </xcad:LayoutAnchorablePane>
                 </xcad:LayoutPanel>
             </xcad:LayoutRoot>
         </xcad:DockingManager>

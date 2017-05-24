@@ -38,6 +38,8 @@ namespace AutoWaifu.Lib.Waifu2x
 
 
 
+        internal WaifuCaffeOptions CustomTaskWaifuCaffeOptions;
+
 
 
         protected override Task<bool> Start(string tempInputPath, string tempOutputPath, string waifu2xCaffePath, string ffmpegPath)
@@ -47,12 +49,22 @@ namespace AutoWaifu.Lib.Waifu2x
                 try
                 {
                     var waifuCaffeInstance = new WaifuCaffeInstance(Path.Combine(waifu2xCaffePath, "waifu2x-caffe-cui.exe"));
-                    waifuCaffeInstance.Options = new WaifuCaffeOptions
+
+                    if (CustomTaskWaifuCaffeOptions != null)
                     {
-                        ConvertMode = this.ConvertMode,
-                        ResolutionResolver = this.OutputResolutionResolver,
-                        ProcessPriority = this.ProcessPriority
-                    };
+                        waifuCaffeInstance.Options = CustomTaskWaifuCaffeOptions;
+                    }
+                    else
+                    {
+                        waifuCaffeInstance.Options = new WaifuCaffeOptions
+                        {
+                            ConvertMode = this.ConvertMode,
+                            ResolutionResolver = this.OutputResolutionResolver,
+                            ProcessPriority = this.ProcessPriority
+                        };
+                    }
+
+
 
                     var waifuResult = await waifuCaffeInstance.Start(InputFilePath, OutputFilePath, () => this.terminate);
 
@@ -67,7 +79,7 @@ namespace AutoWaifu.Lib.Waifu2x
                         return false;
                     }
 
-                    WaifuLogger.Info($"Completed task for {InputFilePath}");
+                    WaifuLogger.Info($"Completed task for {InputFilePath} with NoiseLevel={waifuCaffeInstance.Options.NoiseLevel}");
 
                     return true;
                 }

@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace AutoWaifu2
 {
-    public class TaskItemCollection : List<TaskItem>
+    public class TaskItemCollection : ObservableCollection<TaskItem>
     {
         public TaskItemCollection()
         {
@@ -100,21 +101,18 @@ namespace AutoWaifu2
             base.Add(item);
         }
 
-        public new void AddRange(IEnumerable<TaskItem> items)
+        public void AddRange(IEnumerable<TaskItem> items)
         {
             foreach (var item in items)
             {
                 if (item.RelativeFilePath == null || item.State == TaskItemState.Unknown)
                     throw new InvalidOperationException();
-            }
 
-            foreach (var item in items)
-            {
                 item.StateChanged += Item_StateChanged;
                 InvokeAddStateEvent(item, item.State);
-            }
 
-            base.AddRange(items);
+                this.Add(item);
+            }
         }
 
         public void Remove(string filePath)

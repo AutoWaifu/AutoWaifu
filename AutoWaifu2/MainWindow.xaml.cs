@@ -59,8 +59,17 @@ namespace AutoWaifu2
             ViewModel = new MainWindowViewModel();
             ViewModel.Initialize(this.Dispatcher);
             ViewModel.StartProcessing();
-        }
 
+            try
+            {
+                throw new Exception();
+            }
+            catch (Exception e)
+            {
+                WaifuLogger.Exception(e);
+            }
+        }
+        
         bool isClosing = false;
         bool canClose = false;
         private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -234,6 +243,23 @@ namespace AutoWaifu2
             {
 
             }
+        }
+
+        private void MediaViewListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (MediaViewer_MediaList.SelectedItem == null)
+            {
+                MediaViewer_MediaPlayer.Source = null;
+                return;
+            }
+
+            var selectedItem = MediaViewer_MediaList.SelectedItem as TaskItem;
+            string mediaPath = Path.Combine(AppSettings.Main.InputDir, selectedItem.InputPath);
+            if (selectedItem.State == TaskItemState.Done)
+                mediaPath = Path.Combine(AppSettings.Main.OutputDir, selectedItem.OutputPath);
+
+            MediaViewer_MediaPlayer.Source = new Uri(mediaPath, UriKind.Absolute);
+            MediaViewer_MediaPlayer.Play();
         }
     }
 }

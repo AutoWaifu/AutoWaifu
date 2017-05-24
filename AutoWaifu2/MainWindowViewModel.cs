@@ -55,7 +55,7 @@ namespace AutoWaifu2
         {
             WaifuLogger.Info($"Loading {RootConfig.SettingsFilePath} as the settings data");
 
-            if (!File.Exists(RootConfig.SettingsFilePath))
+            if (!File.Exists(RootConfig.SettingsFilePath) || RootConfig.ForceNewConfig)
             {
                 Settings = new AppSettings();
                 Settings.SaveToFile(RootConfig.SettingsFilePath);
@@ -166,6 +166,8 @@ namespace AutoWaifu2
         public ThreadObservableCollection<TaskItem> PendingInputFiles { get; private set; }
         public ThreadObservableCollection<TaskItem> ProcessingQueueFiles { get; private set; }
         public ThreadObservableCollection<TaskItem> CompletedOutputFiles { get; private set; }
+
+        public ObservableCollection<TaskItem> AllFiles { get; private set; }
 
         AppSettings _settings;
         public AppSettings Settings
@@ -477,10 +479,13 @@ namespace AutoWaifu2
             if (TaskItems.Any(ti => filePath == ti.InputPath))
                 return;
 
-            TaskItems.Add(new TaskItem
+            RootConfig.AppDispatcher.Invoke(() =>
             {
-                RelativeFilePath = AppRelativePath.Create(filePath),
-                State = TaskItemState.Pending
+                TaskItems.Add(new TaskItem
+                {
+                    RelativeFilePath = AppRelativePath.Create(filePath),
+                    State = TaskItemState.Pending
+                });
             });
         }
 

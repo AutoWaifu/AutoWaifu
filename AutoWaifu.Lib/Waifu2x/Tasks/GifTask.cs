@@ -138,6 +138,14 @@ namespace AutoWaifu.Lib.Waifu2x
                     else
                     {
                         var imageTask = new ImageTask(file, outputFrameFile, this.OutputResolutionResolver, this.ConvertMode);
+                        imageTask.CustomTaskWaifuCaffeOptions = new Cui.WaifuCaffe.WaifuCaffeOptions
+                        {
+                            ConvertMode = this.ConvertMode,
+                            ProcessPriority = this.ProcessPriority,
+                            ResolutionResolver = outputResolutionResolver,
+                            NoiseLevel = Cui.WaifuCaffe.WaifuCaffeOptions.ImageNoiseLevel.High
+                        };
+
                         imageTasks.Add(imageTask);
                         await imageTask.StartTask(tempInputPath, tempOutputPath, waifu2xCaffePath, ffmpegPath);
                         imageTasks.Remove(imageTask);

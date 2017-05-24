@@ -13,6 +13,8 @@ namespace AutoWaifu2
 
         public static string EnabledFileTypeFilter = ".png|.jpeg|.jpg|.gif";
 
+        public static bool ForceNewConfig = false;
+
         public static Dispatcher AppDispatcher = null;
     }
 }

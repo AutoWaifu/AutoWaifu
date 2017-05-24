@@ -165,6 +165,14 @@ namespace AutoWaifu2
 
 
 
+                var newPriority = value.ProcessPriority;
+                var currentPriority = StringProcessPriorityMap[Process_PriorityCbx.SelectedValue as string];
+
+                if (newPriority != currentPriority)
+                    Process_PriorityCbx.SelectedIndex = StringProcessPriorityMap.Values.ToList().IndexOf(newPriority);
+
+
+
                 InputFolderPathInput.Value = value.InputDir;
                 OutputFolderPathInput.Value = value.OutputDir;
                 WaifuFolderPathInput.Value = value.Waifu2xCaffeDir;
