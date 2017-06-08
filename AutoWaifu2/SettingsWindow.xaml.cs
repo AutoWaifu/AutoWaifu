@@ -1,9 +1,12 @@
-﻿using AutoWaifu.Lib.Waifu2x;
+﻿using AutoWaifu.Lib.Cui.Ffmpeg;
+using AutoWaifu.Lib.Waifu2x;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -14,6 +17,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
+using static AutoWaifu.Lib.Cui.Ffmpeg.FfmpegCompatibilityOptions;
 using static AutoWaifu2.AppSettings;
 
 namespace AutoWaifu2
@@ -23,6 +27,7 @@ namespace AutoWaifu2
     /// </summary>
     public partial class SettingsWindow : Window
     {
+        ILogger Logger = Log.ForContext<SettingsWindow>();
 
         Dictionary<string, ResolutionResolverMode> StringResizeModeMap = new Dictionary<string, ResolutionResolverMode>
         {
@@ -48,38 +53,31 @@ namespace AutoWaifu2
             { "cuDNN", WaifuConvertMode.cuDNN }
         };
 
+        Dictionary<string, AnimationConvertMode> StringGifModeMap = new Dictionary<string, AnimationConvertMode>
+        {
+            { "Compatibility", AnimationConvertMode.Compatibility },
+            { "Constant Rate Factor", AnimationConvertMode.CRF }
+        };
+
+        Dictionary<string, OutputCompatibilityType> StringGifCompatibilityModeMap = new Dictionary<string, OutputCompatibilityType>
+        {
+            { "High Quality, Low Compatibility", OutputCompatibilityType.HighQualityLowCompatibility },
+            { "Good Quality, Medium Compatibility", OutputCompatibilityType.GoodQualityMediumCompatibility },
+            { "Low Quality, Best Compatibility", OutputCompatibilityType.LowQualityBestCompatibility }
+        };
+
         public SettingsWindow()
         {
             InitializeComponent();
 
-            List<string> resOptionValues = new List<string>();
-            foreach (var resOption in StringResizeModeMap)
-                resOptionValues.Add(resOption.Key);
+            Res_CbResMode.ExtSetMappings(StringResizeModeMap);
 
-            Res_CbResMode.ItemsSource = resOptionValues;
-            Res_CbResMode.SelectedIndex = 0;
+            Process_MethodCbx.ExtSetMappings(StringConvertModeMap);
 
+            Process_PriorityCbx.ExtSetMappings(StringProcessPriorityMap);
 
-
-            List<string> convertOptionValues = new List<string>();
-            foreach (var convertOpt in StringConvertModeMap)
-                convertOptionValues.Add(convertOpt.Key);
-
-            Process_MethodCbx.ItemsSource = convertOptionValues;
-            Process_MethodCbx.SelectedIndex = 0;
-
-
-
-
-            List<string> priorityOptionValues = new List<string>();
-            foreach (var priorityOpt in StringProcessPriorityMap)
-                priorityOptionValues.Add(priorityOpt.Key);
-
-            Process_PriorityCbx.ItemsSource = priorityOptionValues;
-            Process_PriorityCbx.SelectedIndex = 0;
-
-
-
+            //Process_CbGifMode.ExtSetMappings(StringGifModeMap);
+            //Process_CbGifCompatibilityMode.ExtSetMappings(StringGifCompatibilityModeMap);
 
 
 
@@ -149,29 +147,13 @@ namespace AutoWaifu2
             get { return this.DataContext as AppSettingsViewModel; }
             set
             {
-                var newResMode = value.ResolutionMode;
-                var currentResMode = StringResizeModeMap[Res_CbResMode.SelectedValue as string];
+                Res_CbResMode.ExtSetValue(value.ResolutionMode);
+                Process_MethodCbx.ExtSetValue(value.ConversionMode);
+                Process_PriorityCbx.ExtSetValue(value.ProcessPriority);
 
-                if (newResMode != currentResMode)
-                    Res_CbResMode.SelectedIndex = StringResizeModeMap.Values.ToList().IndexOf(newResMode);
-
-
-
-                var newConvertMode = value.ConversionMode;
-                var currentConvertMode = StringConvertModeMap[Process_MethodCbx.SelectedValue as string];
-
-                if (newConvertMode != currentConvertMode)
-                    Process_MethodCbx.SelectedIndex = StringConvertModeMap.Values.ToList().IndexOf(newConvertMode);
-
-
-
-                var newPriority = value.ProcessPriority;
-                var currentPriority = StringProcessPriorityMap[Process_PriorityCbx.SelectedValue as string];
-
-                if (newPriority != currentPriority)
-                    Process_PriorityCbx.SelectedIndex = StringProcessPriorityMap.Values.ToList().IndexOf(newPriority);
-
-
+                //Process_CbGifMode.ExtSetValue(value.GifMode);
+                //Process_CbGifCompatibilityMode.ExtSetValue(value.Model.FfmpegCompatibility.TargetCompatibility);
+                
 
                 InputFolderPathInput.Value = value.InputDir;
                 OutputFolderPathInput.Value = value.OutputDir;
@@ -190,22 +172,14 @@ namespace AutoWaifu2
 
         private void Process_MethodCbx_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (ViewModel == null)
-                return;
-
-            var methodType = StringConvertModeMap[Process_MethodCbx.SelectedValue as string];
-            if (methodType != ViewModel.ConversionMode)
-                ViewModel.ConversionMode = methodType;
+            if (ViewModel != null)
+                ViewModel.ConversionMode = Process_MethodCbx.ExtGetSelectedValue<WaifuConvertMode>();
         }
 
         private void Process_PriorityCbx_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (ViewModel == null)
-                return;
-
-            var priorityType = StringProcessPriorityMap[Process_PriorityCbx.SelectedValue as string];
-            if (priorityType != ViewModel.ProcessPriority)
-                ViewModel.ProcessPriority = priorityType;
+            if (ViewModel != null)
+                ViewModel.ProcessPriority = Process_PriorityCbx.ExtGetSelectedValue<ProcessPriorityClass>();
         }
 
 
@@ -215,12 +189,8 @@ namespace AutoWaifu2
 
         private void Res_CbResMode_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (ViewModel == null)
-                return;
-
-            var resType = StringResizeModeMap[Res_CbResMode.SelectedValue as string];
-            if (resType != ViewModel.ResolutionMode)
-                ViewModel.ResolutionMode = resType;
+            if (ViewModel != null)
+                ViewModel.ResolutionMode = Res_CbResMode.ExtGetSelectedValue<ResolutionResolverMode>();
         }
 
         private void OkButton_Click(object sender, RoutedEventArgs e)
@@ -233,6 +203,65 @@ namespace AutoWaifu2
             DialogResult = false;
         }
 
+        //private void Process_CbGifCompatibilityMode_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        //{
+        //    if (ViewModel != null)
+        //        ViewModel.Model.FfmpegCompatibility.TargetCompatibility = Process_CbGifCompatibilityMode.ExtGetSelectedValue<OutputCompatibilityType>();
+        //}
 
+        private async void CheckForUpdatesButton_Click(object sender, RoutedEventArgs e)
+        {
+            string updateCheckUrl = ViewModel.Model.UpdateVersionCheckUrl;
+            var httpClient = new HttpClient();
+
+            Logger.Debug("Checking for updates at {@UpdateCheckUrl}", updateCheckUrl);
+            var latestVersionRequestMessage = await httpClient.GetAsync(updateCheckUrl);
+            if (!latestVersionRequestMessage.IsSuccessStatusCode)
+            {
+                MessageBox.Show(this, $"Sorry, could not check for updates! ({latestVersionRequestMessage.ReasonPhrase})");
+                Logger.Warning("Failed to GET {@UpdateCheckUrl}, error {@StatusCode} - {@ReasonPhrase}", updateCheckUrl, latestVersionRequestMessage.StatusCode, latestVersionRequestMessage.ReasonPhrase);
+                return;
+            }
+
+            string file = await latestVersionRequestMessage.Content.ReadAsStringAsync();
+            var lines = file.Split('\n');
+
+            if (lines.Length < 2)
+            {
+                MessageBox.Show("The update file is invalid, contact the developer!");
+                return;
+            }
+
+            string version = lines[0].Trim();
+            string latestVersionUrl = lines[1].Trim();
+
+            if (version == RootConfig.CurrentVersion)
+            {
+                MessageBox.Show($"You've got the latest version of AutoWaifu! (v{version})");
+            }
+            else
+            {
+                var shouldDownload = MessageBox.Show($"AutoWaifu v{version} is available at {latestVersionUrl}, would you like to download it?", "", MessageBoxButton.YesNo);
+                if (shouldDownload == MessageBoxResult.Yes)
+                {
+                    var latestBinaryMessage = await httpClient.GetAsync(latestVersionUrl);
+                    if (!latestBinaryMessage.IsSuccessStatusCode)
+                    {
+                        MessageBox.Show(this, $"Sorry, AutoWaifu version {version} couldn't be downloaded. ({latestBinaryMessage.ReasonPhrase})");
+                        Logger.Warning("Failed to GET {@VersionUrl}, error {@StatusCode} - {@ReasonPhrase}", latestVersionUrl, latestBinaryMessage.StatusCode, latestBinaryMessage.ReasonPhrase);
+                        return;
+                    }
+                    else
+                    {
+                        byte[] latestBinary = await latestBinaryMessage.Content.ReadAsByteArrayAsync();
+                        string fileName = Path.GetFileName(latestVersionUrl);
+
+                        File.WriteAllBytes(fileName, latestBinary);
+
+                        MessageBox.Show($"v{version} has been downloaded to AutoWaifu's current folder as {fileName}. Please close AutoWaifu and open the downloaded version.");
+                    }
+                }
+            }
+        }
     }
 }

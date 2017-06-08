@@ -6,3 +6,4 @@ bin/
 obj/
 AutoWaifu.Bot/
 AutoWaifu.Bot.UX/
+*.user

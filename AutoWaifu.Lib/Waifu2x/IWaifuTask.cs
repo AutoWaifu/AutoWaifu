@@ -5,11 +5,10 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using WaifuLog;
 
 namespace AutoWaifu.Lib.Waifu2x
 {
-    public abstract class IWaifuTask
+    public abstract class IWaifuTask : Loggable
     {
         public IWaifuTask(IResolutionResolver resolutionResolver,
                           WaifuConvertMode convertMode)
@@ -60,7 +59,7 @@ namespace AutoWaifu.Lib.Waifu2x
             catch (Exception e)
             {
                 TaskFaulted?.Invoke(this, $"Error occurred during initialization: {e.Message}");
-                WaifuLogger.Exception(e);
+                Logger.Error("An exception occurred during initialization: {@Exception}", e);
                 faulted = true;
             }
 
@@ -75,7 +74,7 @@ namespace AutoWaifu.Lib.Waifu2x
                 {
                     taskSucceeded = false;
                     TaskFaulted?.Invoke(this, $"Error occurred while processing: {e.Message}");
-                    WaifuLogger.Exception(e);
+                    Logger.Error("An exception occurred while processing: {@Exception}", e);
                 }
             }
 
@@ -106,7 +105,7 @@ namespace AutoWaifu.Lib.Waifu2x
             catch (Exception e)
             {
                 TaskFaulted?.Invoke(this, $"Error occurred while running cleanup: {e.Message}");
-                WaifuLogger.Exception(e);
+                Logger.Error(e, "Error occurred while running cleanup");
                 return false;
             }
 
@@ -120,7 +119,7 @@ namespace AutoWaifu.Lib.Waifu2x
             catch (Exception e)
             {
                 TaskFaulted?.Invoke(this, $"Error occurred while canceling a task: {e.Message}");
-                WaifuLogger.Exception(e);
+                Logger.Error(e, "Error occurred while canceling a task");
                 faulted = true;
             }
 
@@ -131,7 +130,7 @@ namespace AutoWaifu.Lib.Waifu2x
             catch (Exception e)
             {
                 TaskFaulted?.Invoke(this, $"Error occurred while running cleanup for a canceled task: {e.Message}");
-                WaifuLogger.Exception(e);
+                Logger.Error(e, "Error occurred while running cleanup for a canceled task");
                 return false;
             }
         }

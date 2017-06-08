@@ -1,5 +1,6 @@
 ﻿using AutoWaifu.Lib.Cui;
 using AutoWaifu.Lib.Cui.WaifuCaffe;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -7,9 +8,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using WaifuLog;
 
-namespace AutoWaifu.Lib.Waifu2x
+namespace AutoWaifu.Lib.Waifu2x.Tasks
 {
     public class ImageTask : IWaifuTask
     {
@@ -68,24 +68,31 @@ namespace AutoWaifu.Lib.Waifu2x
 
                     var waifuResult = await waifuCaffeInstance.Start(InputFilePath, OutputFilePath, () => this.terminate);
 
-                    WaifuLogger.Info($"Ran waifu2x-caffe with params {waifuResult.Args}");
+                    if (this.terminate)
+                    {
+                        Logger.Debug("ImageTask for {InputImagePath} has been canceled", InputFilePath);
+                        return false;
+                    }
+
+                    Logger.Debug("Ran waifu2x-caffe with params {@WaifuArgs}", waifuResult.Args);
 
                     upscaleTask = null;
 
                     if (waifuResult.ExitCode == 1 || !File.Exists(OutputFilePath))
                     {
-                        WaifuLogger.ExternalError($"Running waifu2x-caffe-cui on {InputFilePath} failed, process terminated with exit code {waifuResult.ExitCode}");
-                        WaifuLogger.ExternalError($"WaifuCaffe output for task {InputFilePath}:\n{string.Join("\n", waifuResult.OutputStreamData)}");
+                        Logger.Error("Running waifu2x-caffe-cui on {@InputPath} failed, process terminated with exit code {@ExitCode}", InputFilePath, waifuResult.ExitCode);
+                        Logger.Error("WaifuCaffe output for task {@InputPath}:\n{@StandardOutputStream}", InputFilePath, waifuResult.OutputStreamData);
                         return false;
                     }
 
-                    WaifuLogger.Info($"Completed task for {InputFilePath} with NoiseLevel={waifuCaffeInstance.Options.NoiseLevel}");
+                    Logger.Debug("Completed task for {@InputPath} with NoiseLevel={@NoiseLevel}", InputFilePath, waifuCaffeInstance.Options.NoiseLevel);
 
                     return true;
                 }
                 catch (Exception e)
                 {
-                    WaifuLogger.Exception($"A top-level error occurred while running waifu2x-caffe-cui and waiting for its completion", e);
+                    Logger.Error(e, "A top-level error occurred while running waifu2x-caffe-cui and waiting for its completion");
+                    upscaleTask = null;
                     return false;
                 }
             });

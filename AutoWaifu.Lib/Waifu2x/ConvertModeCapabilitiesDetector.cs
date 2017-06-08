@@ -13,6 +13,19 @@ namespace AutoWaifu.Lib.Waifu2x
         static bool? CachedIsGpuAvailable = null;
         static bool? CachedIsCudnnAvailable = null;
 
+        public bool IsConvertModeAvailable(WaifuConvertMode mode)
+        {
+            switch (mode)
+            {
+                case WaifuConvertMode.CPU:      return IsCpuAvailable;
+                case WaifuConvertMode.GPU:      return IsGpuAvailable;
+                case WaifuConvertMode.cuDNN:    return IsCudnnAvailable;
+
+                default:
+                    throw new InvalidOperationException();
+            }
+        }
+
         public bool IsCpuAvailable => true;
 
         /// <summary>

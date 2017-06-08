@@ -20,7 +20,7 @@ namespace AutoWaifu2
     /// <summary>
     /// Interaction logic for PathInput.xaml
     /// </summary>
-    [ImplementPropertyChanged]
+    [AddINotifyPropertyChangedInterface]
     public partial class PathInput : UserControl
     {
         //  TODO - Use CommonOpenFileDialog - http://stackoverflow.com/questions/11624298/how-to-use-openfiledialog-to-select-a-folder

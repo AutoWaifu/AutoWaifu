@@ -1,4 +1,7 @@
 ﻿using AutoWaifu.Lib.Waifu2x;
+using Serilog;
+using Serilog.Events;
+using Serilog.Formatting.Json;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -17,7 +20,6 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Threading;
-using WaifuLog;
 
 namespace AutoWaifu2
 {
@@ -26,33 +28,102 @@ namespace AutoWaifu2
     /// </summary>
     public partial class MainWindow : Window
     {
+        ILogger Logger = Log.ForContext<MainWindow>();
+
+        class LogObserver : IObserver<LogEvent>
+        {
+            public void OnCompleted()
+            {
+                
+            }
+
+            public void OnError(Exception error)
+            {
+                
+            }
+
+            public void OnNext(LogEvent value)
+            {
+                var stringBuilder = new StringBuilder();
+                using (TextWriter writer = new StringWriter(stringBuilder))
+                {
+                    value.RenderMessage(writer);
+                    
+                    NewMessageEvent?.Invoke(value.Level, value.Level.ToString() + ": " + stringBuilder.ToString());
+                }
+            }
+
+            event Action<LogEventLevel, string> NewMessageEvent;
+
+            public LogObserver OnMessage(Action<LogEventLevel, string> msgCallback)
+            {
+                NewMessageEvent += msgCallback;
+                return this;
+            }
+        }
+
         public MainWindow()
         {
             InitializeComponent();
 
+            var cmdLine = Environment.GetCommandLineArgs();
+            if (cmdLine.Any(c => c.ToLower() == "-headless"))
+                this.Hide();
+
             RootConfig.AppDispatcher = this.Dispatcher;
 
-            string logFile = "log.txt";
+            if (File.Exists("log.txt"))
+                File.Delete("log.txt");
+            if (File.Exists("log.json"))
+                File.Delete("log.json");
 
-            File.AppendAllText(logFile, $"\n\n\n========== Log started for {DateTime.Now}\n");
-
-            WaifuLogger.LogWritten += (t, m) =>
+            Serilog.Debugging.SelfLog.Enable((msg) =>
             {
-                File.AppendAllText("log.txt", m + '\n');
+                Debug.WriteLine("Serilog: " + msg);
+            });
+
+            AppDomain.CurrentDomain.DomainUnload += (o, e) =>
+            {
+                FormatLog("log.txt");
+                FormatLog("log.json");
             };
 
-            var infoLogStream = new WaifuLoggerStream
-            {
-                MessageFilter = WaifuLogger.LogMessageType.ConfigWarning | WaifuLogger.LogMessageType.ExternalError | WaifuLogger.LogMessageType.LogicError | WaifuLogger.LogMessageType.Warning
-            };
 
-            var debugLogStream = new WaifuLoggerStream
+#if DEBUG
+            StackifyLib.Logger.ApiKey = null;
+            StackifyLib.Utils.StackifyAPILogger.LogEnabled = true;
+            StackifyLib.Utils.StackifyAPILogger.OnLogMessage += (string data) =>
             {
-                MessageFilter = WaifuLogger.LogMessageType.All
+                Debug.WriteLine(data);
             };
+#endif
 
-            InfoLogPage.LogStream = infoLogStream;
-            DebugLogPage.LogStream = debugLogStream;
+
+            Log.Logger = new LoggerConfiguration()
+                            .MinimumLevel.Verbose()
+                            .WriteTo.File("log.txt")
+                            .WriteTo.File(new JsonFormatter(null, true), "log.json")
+//#if DEBUG
+//                            .WriteTo.Stackify()
+//#endif
+                            .WriteTo.Observers(events => events.Subscribe(new LogObserver().OnMessage((level, msg) =>
+                            {
+#if DEBUG
+                                if (level >= LogEventLevel.Error && Debugger.IsAttached)
+                                    Debugger.Break();
+#endif
+
+                                if (level >= LogEventLevel.Warning)
+                                    InfoLogPage.LogMessage(level, msg);
+
+                                DebugLogPage.LogMessage(level, msg);
+                            })))
+                            .CreateLogger();
+
+
+
+            //MediaViewer_MediaPlayer.MediaOpened += MediaViewer_MediaPlayer_MediaOpened;
+            //MediaViewer_MediaPlayer.MediaEnded += MediaViewer_MediaPlayer_MediaEnded;
 
             this.Closing += MainWindow_Closing;
 
@@ -60,16 +131,46 @@ namespace AutoWaifu2
             ViewModel.Initialize(this.Dispatcher);
             ViewModel.StartProcessing();
 
-            try
+            ViewModel.PropertyChanged += ViewModel_PropertyChanged;
+
+
+            PendingFilesPane.Title = ViewModel.PendingFileListLabel;
+            ProcessingFilesPane.Title = ViewModel.ProcessingFileListLabel;
+            OutputFilesPane.Title = ViewModel.OutputFileListLabel;
+        }
+
+
+
+        private void ViewModel_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            switch (e.PropertyName)
             {
-                throw new Exception();
-            }
-            catch (Exception e)
-            {
-                WaifuLogger.Exception(e);
+                case nameof(MainWindowViewModel.PendingFileListLabel):
+                    PendingFilesPane.Title = ViewModel.PendingFileListLabel;
+                    break;
+
+                case nameof(MainWindowViewModel.ProcessingFileListLabel):
+                    ProcessingFilesPane.Title = ViewModel.ProcessingFileListLabel;
+                    break;
+
+                case nameof(MainWindowViewModel.OutputFileListLabel):
+                    OutputFilesPane.Title = ViewModel.OutputFileListLabel;
+                    break;
             }
         }
+
+        //private void MediaViewer_MediaPlayer_MediaOpened(object sender, RoutedEventArgs e)
+        //{
+        //    MediaViewer_MediaPlayer.Play();
+        //}
         
+
+        //private void MediaViewer_MediaPlayer_MediaEnded(object sender, RoutedEventArgs e)
+        //{
+        //    MediaViewer_MediaPlayer.Position = TimeSpan.FromMilliseconds(1);
+        //    MediaViewer_MediaPlayer.Play();
+        //}
+
         bool isClosing = false;
         bool canClose = false;
         private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -93,12 +194,31 @@ namespace AutoWaifu2
                 switch (shouldForceQuit)
                 {
                     case MessageBoxResult.Yes:
+                        WaitingForTasksLbl.Visibility = Visibility.Visible;
+
                         e.Cancel = true;
                         isClosing = true;
 
-                        Task.Run(async () =>
+                        Task.Run(() =>
                         {
-                            await viewModel.StopProcessing();
+                            Logger.Verbose("Force-quitting existing processes");
+
+                            DateTime waitStartTime = DateTime.Now;
+                            var stopProcessingTask = viewModel.StopProcessing();
+
+                            while (!stopProcessingTask.Wait(10))
+                            {
+                                DateTime now = DateTime.Now;
+
+                                if ((now - waitStartTime).TotalSeconds > 5000)
+                                {
+                                    ProcessHelper.Terminate("waifu2x-caffe-cui.exe");
+                                    ProcessHelper.Terminate("ffmpeg.exe");
+
+                                    break;
+                                }
+                            }
+
                             canClose = true;
 
                             Dispatcher.Invoke(() => this.Close());
@@ -106,6 +226,8 @@ namespace AutoWaifu2
                         break;
 
                     case MessageBoxResult.No:
+                        WaitingForTasksLbl.Visibility = Visibility.Visible;
+
                         e.Cancel = true;
                         isClosing = true;
                         WaitingForTasksLbl.Visibility = Visibility.Visible;
@@ -128,6 +250,20 @@ namespace AutoWaifu2
                         e.Cancel = true;
                         break;
                 }
+            }
+
+
+
+
+            if (!e.Cancel)
+            {
+                Log.CloseAndFlush();
+
+                if (Directory.Exists(AppSettings.Main.TempDir))
+                    Directory.Delete(AppSettings.Main.TempDir, true);
+
+                FormatLog("log.txt");
+                FormatLog("log.json");
             }
         }
 
@@ -190,9 +326,10 @@ namespace AutoWaifu2
 
                     html = html.Replace('\n', ' ');
                     html = html.Replace('\r', ' ');
+                    html = html.Replace("&amp;", "&");
 
                     var matchImage = new Regex(@"<img (.*)\/?>");
-                    var matchSrc = new Regex("src=[\"']([\\w:\\/\\\\\\.\\d-=\\?]*)");
+                    var matchSrc = new Regex("src=[\"']([\\w:\\/\\\\\\.\\d-=\\?\\&\\%;]*)\"");
 
                     var imageMatch = matchImage.Match(html);
                     var img = imageMatch.Groups[1].Value;
@@ -200,7 +337,11 @@ namespace AutoWaifu2
                     var srcMatch = matchSrc.Match(img);
                     var src = srcMatch.Groups[1].Value;
 
-                    var type = Path.GetExtension(src);
+                    var matchFileName = new Regex(@"([\w\d]+\.(gif|png|jpg|jpeg))");
+                    var fileNameMatch = matchFileName.Match(src);
+                    var fileName = fileNameMatch.Captures[0].Value;
+
+                    var type = Path.GetExtension(fileName);
                     switch (type)
                     {
                         case ".png":
@@ -220,13 +361,13 @@ namespace AutoWaifu2
                     }
 
 
-                    string tempFileName = Path.GetFileName(src) + '-' + Guid.NewGuid().ToString();
+                    string tempFileName = fileName + '-' + Guid.NewGuid().ToString();
                     string tempFilePath = Path.Combine(AppSettings.Main.TempDir, tempFileName);
 
                     WebClient client = new WebClient();
                     await client.DownloadFileTaskAsync(src, tempFilePath);
 
-                    string newFilePath = Path.GetFullPath(Path.Combine(AppSettings.Main.InputDir, Path.GetFileName(src)));
+                    string newFilePath = Path.GetFullPath(Path.Combine(AppSettings.Main.InputDir, fileName));
                     if (File.Exists(newFilePath))
                         File.Delete(newFilePath);
 
@@ -234,14 +375,32 @@ namespace AutoWaifu2
                 }
             });
 
-            if (e.Data.GetDataPresent(DataFormats.Bitmap))
-            {
-
-            }
-
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
+                var files = e.Data.GetData(DataFormats.FileDrop) as string[];
 
+                switch (ViewModel.Settings.FileDragMethod)
+                {
+                    case AppSettings.ImportFileMethod.Copy:
+                        Logger.Verbose("Copying files that were dragged onto AutoWaifu");
+                        foreach (var file in files)
+                        {
+                            var outputPath = AppRelativePath.CreateInput(Path.GetFileName(file));
+                            Logger.Verbose("Copying {@InputFile} to {@OutputFile}", file, outputPath);
+                            FileSystemHelper.RecursiveCopy(file, outputPath);
+                        }
+                        break;
+
+                    case AppSettings.ImportFileMethod.Move:
+                        Logger.Verbose("Moving files that were dragged onto AutoWaifu");
+                        foreach (var file in files)
+                        {
+                            var outputPath = AppRelativePath.CreateInput(Path.GetFileName(file));
+                            Logger.Verbose("Moving {@InputFile} to {@OutputFile}", file, outputPath);
+                            FileSystemHelper.RecursiveMove(file, outputPath);
+                        }
+                        break;
+                }
             }
         }
 
@@ -249,7 +408,8 @@ namespace AutoWaifu2
         {
             if (MediaViewer_MediaList.SelectedItem == null)
             {
-                MediaViewer_MediaPlayer.Source = null;
+                MediaViewer_MediaKitPlayer.Source = null;
+                //MediaViewer_MediaPlayer.Source = null;
                 return;
             }
 
@@ -258,8 +418,25 @@ namespace AutoWaifu2
             if (selectedItem.State == TaskItemState.Done)
                 mediaPath = Path.Combine(AppSettings.Main.OutputDir, selectedItem.OutputPath);
 
-            MediaViewer_MediaPlayer.Source = new Uri(mediaPath, UriKind.Absolute);
-            MediaViewer_MediaPlayer.Play();
+            MediaViewer_MediaKitPlayer.Source = new Uri(mediaPath, UriKind.Absolute);
+            MediaViewer_MediaKitPlayer.Loop = true;
+
+            //MediaViewer_MediaPlayer.Source = new Uri(mediaPath, UriKind.Absolute);
+            //MediaViewer_MediaPlayer.Play();
+
+            
+        }
+        
+
+        void FormatLog(string logPath)
+        {
+            var log = File.ReadAllText(logPath);
+            log = log.Replace(@"\\", @"\");
+            log = log.Replace("\\\"", "\"");
+
+            //log = FileSystemHelper.AnonymizeFilePaths(log);
+
+            File.WriteAllText(logPath, log);
         }
     }
 }

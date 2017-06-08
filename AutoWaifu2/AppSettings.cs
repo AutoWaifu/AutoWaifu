@@ -1,20 +1,24 @@
-﻿using AutoWaifu.Lib.Waifu2x;
+﻿using AutoWaifu.Lib.Cui.Ffmpeg;
+using AutoWaifu.Lib.Waifu2x;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using PropertyChanged;
+using Serilog;
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Xml;
 using System.Xml.Serialization;
-using WaifuLog;
 
 namespace AutoWaifu2
 {
     [Serializable]
     public class AppSettings
     {
+        ILogger Logger = Log.ForContext<AppSettings>();
+
         static AppSettings _mainSettings;
         public static AppSettings Main
         {
@@ -50,6 +54,24 @@ namespace AutoWaifu2
 
 
 
+        int _gifDenoiseAmt = 1;
+        public int GifDenoiseAmount
+        {
+            get => _gifDenoiseAmt;
+            set
+            {
+                _gifDenoiseAmt = value;
+
+                if (_gifDenoiseAmt < 0)
+                    _gifDenoiseAmt = 0;
+
+                if (_gifDenoiseAmt > 10)
+                    _gifDenoiseAmt = 10;
+            }
+        }
+
+
+
         int _maxParallel = 2;
         public int MaxParallel
         {
@@ -67,6 +89,18 @@ namespace AutoWaifu2
 
 
 
+        public enum ImportFileMethod
+        {
+            Copy,
+            Move
+        }
+
+        [JsonConverter(typeof(StringEnumConverter))]
+        public ImportFileMethod FileDragMethod { get; set; } = ImportFileMethod.Copy;
+
+
+        public bool AutoStartOnOpen { get; set; } = true;
+
         public MaxSizeResolutionResolver MaxSizeResolution { get; set; } = new MaxSizeResolutionResolver(new ImageResolution { Width = 3000, Height = 3000 });
 
         public MegapixelResolutionResolver MegapixelResolution { get; set; } = new MegapixelResolutionResolver(2000000.0f);
@@ -81,27 +115,82 @@ namespace AutoWaifu2
             ScaleFactor
         }
 
-        public ResolutionResolverMode ResolutionMode = ResolutionResolverMode.ScaleFactor;
+        [JsonConverter(typeof(StringEnumConverter))]
+        public ResolutionResolverMode ResolutionMode { get; set; } = ResolutionResolverMode.ScaleFactor;
+
+
+
+        public string UpdateVersionCheckUrl { get; set; } = "http://autowaifu.azurewebsites.net/update.txt";
+
+
+
+        public FfmpegCompatibilityOptions FfmpegCompatibility { get; set; } = new FfmpegCompatibilityOptions { TargetCompatibility = FfmpegCompatibilityOptions.OutputCompatibilityType.GoodQualityMediumCompatibility };
+
+        public FfmpegCrfEncodingOptions FfmpegCrf { get; set; } = new FfmpegCrfEncodingOptions { CRF = 30 };
+
+        public enum AnimationConvertMode
+        {
+            Compatibility,
+            CRF
+        }
+
+        [JsonConverter(typeof(StringEnumConverter))]
+        public AnimationConvertMode AnimationMode { get; set; } = AnimationConvertMode.Compatibility;
+
+
+
+        public enum GifAnimationExtractionMode
+        {
+            ImageMagick,
+            Ffmpeg
+        }
+
+        [JsonConverter(typeof(StringEnumConverter))]
+        public GifAnimationExtractionMode GifFrameExtractionMode { get; set; } = GifAnimationExtractionMode.Ffmpeg;
+
+
+
+        public enum AnimationOutputMode
+        {
+            GIF,
+            MP4
+        }
+
+        [JsonConverter(typeof(StringEnumConverter))]
+        public AnimationOutputMode GifOutputType { get; set; } = AnimationOutputMode.MP4;
+
+        [JsonConverter(typeof(StringEnumConverter))]
+        public AnimationOutputMode VideoOutputType { get; set; } = AnimationOutputMode.MP4;
+        
+
+        public bool ParallelizeAnimationConversion { get; set; } = true;
+
+        float _animationParallelizationMaxThreadsFactor = 0.8f;
+        public float AnimationParallelizationMaxThreadsFactor
+        {
+            get => this._animationParallelizationMaxThreadsFactor;
+            set
+            {
+                this._animationParallelizationMaxThreadsFactor = value;
+
+                if (this._animationParallelizationMaxThreadsFactor < 0.1f)
+                    this._animationParallelizationMaxThreadsFactor = 0.1f;
+                if (this._animationParallelizationMaxThreadsFactor > 1.0f)
+                    this._animationParallelizationMaxThreadsFactor = 1.0f;
+            }
+        }
+
+
+
+        T DeepCopy<T>(T value) where T : class, new()
+        {
+            string json = JsonConvert.SerializeObject(value);
+            return JsonConvert.DeserializeObject<T>(json);
+        }
 
         public AppSettings Copy()
         {
-            return new AppSettings
-            {
-                ConversionMode = this.ConversionMode,
-                Priority = this.Priority,
-
-                Waifu2xCaffeDir = this.Waifu2xCaffeDir,
-                InputDir = this.InputDir,
-                OutputDir = this.OutputDir,
-
-                MaxSizeResolution = this.MaxSizeResolution,
-                MegapixelResolution = this.MegapixelResolution,
-                ScaleResolution = this.ScaleResolution,
-
-                ResolutionMode = this.ResolutionMode,
-
-                MaxParallel = this.MaxParallel
-            };
+            return DeepCopy(this);
         }
 
 
@@ -109,7 +198,8 @@ namespace AutoWaifu2
 
         public static AppSettings LoadFromFile(String filePath)
         {
-            WaifuLogger.Info($"Loading AppSettings from '{filePath}'");
+            var logger = Log.ForContext<AppSettings>();
+            logger.Debug("Loading AppSettings from '{@SettingsFilePath}'", filePath);
             return JsonConvert.DeserializeObject<AppSettings>(File.ReadAllText(filePath));
         }
 
@@ -119,7 +209,7 @@ namespace AutoWaifu2
         /// <returns>An XML representation of the app settings.</returns>
         public void SaveToFile(string filePath)
         {
-            WaifuLogger.Info($"Saving AppSettings to '{filePath}'");
+            Logger.Debug("Saving AppSettings to '{@SettingsFilePath}'", filePath);
             string json = JsonConvert.SerializeObject(this, Newtonsoft.Json.Formatting.Indented);
             File.WriteAllText(filePath, json);
         }

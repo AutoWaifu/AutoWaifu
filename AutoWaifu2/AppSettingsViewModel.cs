@@ -12,7 +12,7 @@ using static AutoWaifu2.AppSettings;
 
 namespace AutoWaifu2
 {
-    [ImplementPropertyChanged]
+    [AddINotifyPropertyChangedInterface]
     public class AppSettingsViewModel
     {
         public AppSettingsViewModel(AppSettings model)
@@ -22,10 +22,12 @@ namespace AutoWaifu2
 
         public AppSettings Model { get; set; }
 
-        public Visibility VisibilityMaxSizeResolutionMode { get { return ResolutionMode == ResolutionResolverMode.MaxSize ? Visibility.Visible : Visibility.Hidden; } }
-        public Visibility VisibilityMegapixelResolutionMode { get { return ResolutionMode == ResolutionResolverMode.TargetMegapixels ? Visibility.Visible : Visibility.Hidden; } }
-        public Visibility VisibilityScaleFactorMode { get { return ResolutionMode == ResolutionResolverMode.ScaleFactor ? Visibility.Visible : Visibility.Hidden; } }
+        public Visibility VisibilityMaxSizeResolutionMode => ResolutionMode == ResolutionResolverMode.MaxSize ? Visibility.Visible : Visibility.Hidden;
+        public Visibility VisibilityMegapixelResolutionMode => ResolutionMode == ResolutionResolverMode.TargetMegapixels ? Visibility.Visible : Visibility.Hidden;
+        public Visibility VisibilityScaleFactorMode => ResolutionMode == ResolutionResolverMode.ScaleFactor ? Visibility.Visible : Visibility.Hidden;
 
+        public Visibility VisibilityCompatibilityMode => GifMode == AnimationConvertMode.Compatibility ? Visibility.Visible : Visibility.Hidden;
+        public Visibility VisibilityCrfMode => GifMode == AnimationConvertMode.CRF ? Visibility.Visible : Visibility.Hidden;
 
 
         public ResolutionResolverMode ResolutionMode
@@ -38,6 +40,12 @@ namespace AutoWaifu2
         {
             get { return Model.ConversionMode; }
             set { Model.ConversionMode = value; }
+        }
+
+        public AnimationConvertMode GifMode
+        {
+            get { return Model.AnimationMode; }
+            set { Model.AnimationMode = value; }
         }
 
         public ProcessPriorityClass ProcessPriority

@@ -10,7 +10,7 @@
       Title="LogPage">
 
     <Grid>
-        <RichTextBox IsUndoEnabled="False" VerticalScrollBarVisibility="Auto" IsReadOnly="True" Background="Black">
+        <RichTextBox x:Name="LogTextBox" IsUndoEnabled="False" VerticalScrollBarVisibility="Auto" IsReadOnly="True" Background="Black">
             <RichTextBox.Resources>
                 <Style TargetType="{x:Type Paragraph}">
                     <Setter Property="Margin"

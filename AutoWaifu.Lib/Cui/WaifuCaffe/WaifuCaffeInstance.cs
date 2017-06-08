@@ -7,11 +7,10 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using WaifuLog;
 
 namespace AutoWaifu.Lib.Cui.WaifuCaffe
 {
-    class WaifuCaffeInstance
+    class WaifuCaffeInstance : Loggable
     {
         public WaifuCaffeInstance(string waifuCaffePath)
         {
@@ -33,10 +32,10 @@ namespace AutoWaifu.Lib.Cui.WaifuCaffe
         public async Task<RunInfo> Start(string inputFilePath, string outputFilePath, Func<bool> shouldTerminateDelegate = null)
         {
             if (WaifuCaffePath == null || !File.Exists(WaifuCaffePath))
-                WaifuLogger.LogicError($"Cannot start WaifuCaffe for {inputFilePath} since the specified WaifuCaffe path is invalid! (Either not set or the file doesn't exist!)");
+                Logger.Error("Cannot start WaifuCaffe for {@InputPath} since the specified WaifuCaffe path is invalid! (Either not set or the file doesn't exist!)", inputFilePath);
 
             if (Options == null)
-                WaifuLogger.LogicError($"Cannot start WaifuCaffe for {inputFilePath} when Options is null!");
+                Logger.Error("Cannot start WaifuCaffe for {@InputPath} when Options is null!", inputFilePath);
 
             var runInfo = new RunInfo();
 
@@ -73,6 +72,8 @@ namespace AutoWaifu.Lib.Cui.WaifuCaffe
             {
                 if (shouldTerminateDelegate == null || !shouldTerminateDelegate())
                     await Task.Delay(10);
+                else
+                    break;
             }
 
             if (shouldTerminateDelegate == null || !shouldTerminateDelegate())

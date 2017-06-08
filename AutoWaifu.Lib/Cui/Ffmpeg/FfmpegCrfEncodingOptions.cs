@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace AutoWaifu.Lib.Cui.Ffmpeg
 {
     [Serializable]
-    class FfmpegCrfEncodingOptions : IFfmpegOptions
+    public class FfmpegCrfEncodingOptions : IFfmpegOptions
     {
         int crf = 25;
         public int CRF
@@ -34,6 +34,7 @@ namespace AutoWaifu.Lib.Cui.Ffmpeg
             else
                 paramParts.Add($"-r {this.OutputFramerate}");
 
+            
             paramParts.Add($"-i \"{inputImageNameFormat}\"");
 
             paramParts.Add("-vcodec h264");

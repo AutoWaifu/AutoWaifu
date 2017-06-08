@@ -23,7 +23,7 @@ namespace AutoWaifu.Lib.Waifu2x
 
         public ImageResolution Resolve(ImageResolution inputRes)
         {
-            float inputMegapixels = inputRes.Width * inputRes.Height * 1e6f;
+            float inputMegapixels = inputRes.Width * inputRes.Height;
             float scale = DesiredMegapixels / inputMegapixels;
 
             return new ImageResolution

@@ -10,7 +10,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using WaifuLog;
 
 namespace AutoWaifu.Lib.Waifu2x
 {
@@ -61,6 +60,8 @@ namespace AutoWaifu.Lib.Waifu2x
 
                 try
                 {
+                    WaifuLogger.Info($"Loading {inputPath}...");
+
                     using (MagickImageCollection collection = new MagickImageCollection(inputPath))
                     {
                         collection.Coalesce();
@@ -72,7 +73,10 @@ namespace AutoWaifu.Lib.Waifu2x
                         int idx = 0;
                         foreach (var img in collection)
                         {
-                            frameLength += img.AnimationDelay * 10  / collection.Count;
+                            if (this._terminate)
+                                return false;
+
+                            frameLength += img.AnimationDelay * 10.0  / collection.Count;
 
                             string idxString = (idx++).ToString();
                             if (idxString.Length < 2)
@@ -83,6 +87,8 @@ namespace AutoWaifu.Lib.Waifu2x
                                 idxString = "0" + idxString;
 
                             string frameFile = Path.Combine(tempInputPath, $"{Path.GetFileName(InputFilePath)}_{idxString}.jpeg");
+
+                            WaifuLogger.Info($"Saving frame {idx}/{collection.Count}");
 
                             img.Format = MagickFormat.Jpeg;
                             img.Write(frameFile);
@@ -262,6 +268,10 @@ namespace AutoWaifu.Lib.Waifu2x
         protected override async Task<bool> Cancel()
         {
             _terminate = true;
+
+            foreach (var task in this.imageTasks)
+                task.CancelTask();
+
             while (IsRunning)
                 await Task.Delay(1);
 

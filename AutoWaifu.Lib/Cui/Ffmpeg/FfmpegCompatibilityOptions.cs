@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace AutoWaifu.Lib.Cui.Ffmpeg
 {
     [Serializable]
-    class FfmpegCompatibilityOptions : IFfmpegOptions
+    public class FfmpegCompatibilityOptions : IFfmpegOptions
     {
         public enum OutputCompatibilityType
         {
@@ -28,10 +28,12 @@ namespace AutoWaifu.Lib.Cui.Ffmpeg
                 paramParts.Add($"-framerate {this.OutputFramerate}");
             else
                 paramParts.Add($"-r {this.OutputFramerate}");
+            
 
             paramParts.Add($"-i \"{inputImageNameFormat}\"");
 
             paramParts.Add("-vcodec h264");
+            
 
             switch (TargetCompatibility)
             {

@@ -1,16 +1,18 @@
-﻿using System;
+﻿using Serilog;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using WaifuLog;
 
 namespace AutoWaifu.Lib.Cui.Ffmpeg
 {
     public class FfmpegInstance
     {
+        ILogger Logger = Log.ForContext<FfmpegInstance>();
+
         public FfmpegInstance(string ffmpegPath)
         {
             FfmpegPath = ffmpegPath;
@@ -31,10 +33,10 @@ namespace AutoWaifu.Lib.Cui.Ffmpeg
         public async Task<RunInfo> Start(string inputImagePathFormat, string outputFilePath, Func<bool> shouldTerminateDelegate = null)
         {
             if (FfmpegPath == null || !File.Exists(FfmpegPath))
-                WaifuLogger.LogicError($"Cannot start ffmpeg for {inputImagePathFormat} since the specified WaifuCaffe path is invalid! (Either not set or the file doesn't exist!)");
+                Logger.Error("Cannot start ffmpeg for {@InputPathFormat} since the specified WaifuCaffe path is invalid! (Either not set or the file doesn't exist!)", inputImagePathFormat);
 
             if (Options == null)
-                WaifuLogger.LogicError($"Cannot start ffmpeg for {inputImagePathFormat} when Options is null!");
+                Logger.Error("Cannot start ffmpeg for {@InputPathFormat} when Options is null!", inputImagePathFormat);
 
 
             RunInfo runInfo = new RunInfo();
