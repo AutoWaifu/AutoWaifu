@@ -30,7 +30,7 @@ After you've set up those folders, move your input files to the Input folder you
 ## Troubleshooting
 The window can sometimes hang after not detecting that waifu2x stopped running. If you don't see any waifu2x processes in Task Manager, and AutoWaifu says it's trying to do work, then force-quit AutoWaifu and run again.
 
-If you have any questions shoot me a message on reddit (/u/yiffanon) or submit an issue here.
+If you have any questions shoot me a message on reddit (/u/autowaifu) or submit an issue here.
 
 
 ## Warning - Limitations!
