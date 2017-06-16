@@ -33,8 +33,8 @@
                                 </Grid.ColumnDefinitions>
                                 <ListBox x:Name="MediaViewer_MediaList" Grid.Column="0" ItemsSource="{Binding TaskItems}" ItemTemplate="{StaticResource TaskItemTemplate}" Margin="0,0,0.334,0.333" SelectionChanged="MediaViewListBox_SelectionChanged" />
                                 <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Width="Auto" />
-                                <!--<MediaElement LoadedBehavior="Manual" UnloadedBehavior="Manual" x:Name="MediaViewer_MediaPlayer" Grid.Column="2" />-->
-                                <MediaKit:MediaUriElement x:Name="MediaViewer_MediaKitPlayer" Grid.Column="2" LoadedBehavior="Play" UnloadedBehavior="Play" />
+                                <MediaElement Visibility="Hidden" LoadedBehavior="Manual" UnloadedBehavior="Manual" x:Name="MediaViewer_MediaElementPlayer" Grid.Column="2" />
+                                <MediaKit:MediaUriElement Visibility="Hidden" x:Name="MediaViewer_MediaKitPlayer" Grid.Column="2" LoadedBehavior="Play" UnloadedBehavior="Play" />
                             </Grid>
                         </xcad:LayoutAnchorable>
                     </xcad:LayoutAnchorablePane>
@@ -73,7 +73,9 @@
                                     <ListBox ItemsSource="{Binding ProcessingQueueFiles}" ItemTemplate="{StaticResource TaskItemTemplate}" Grid.Column="1" Margin="4.667,10,9,10" />
                                     <Button Content="Settings" Margin="10,10,0,0" VerticalAlignment="Top" Height="20" Click="SettingsButton_Click" HorizontalAlignment="Left" Width="75"/>
                                     <Button Visibility="Hidden" Content="Restart All" Margin="0,0,5.333,10" Height="20" VerticalAlignment="Bottom" HorizontalAlignment="Right" Width="75"/>
-                                    <TextBlock Foreground="Gray" Margin="10,35,10.333,10" TextWrapping="Wrap" Text="{Binding TimeRemaining}"/>
+                                    <TextBlock Foreground="Gray" Margin="10,35,10.333,60" TextWrapping="Wrap" Text="{Binding TimeRemaining}"/>
+                                    <Button Content="Start" HorizontalAlignment="Left" Margin="10,0,0,36" Width="93" Height="19" VerticalAlignment="Bottom" Click="StartProcessingButton_Click"/>
+                                    <Button Content="Stop" HorizontalAlignment="Left" Margin="10,0,0,12" Width="93" Height="19" VerticalAlignment="Bottom" Click="StopProcessingButton_Click"/>
                                 </Grid>
                             </xcad:LayoutAnchorable>
                         </xcad:LayoutAnchorablePane>

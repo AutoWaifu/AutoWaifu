@@ -27,13 +27,14 @@ namespace AutoWaifu.Lib.Cui.WaifuCaffe
 
 
         internal int GpuIndex { get; set; } = 0;
-        internal ImageNoiseLevel NoiseLevel { get; set; } = ImageNoiseLevel.Low;
+        internal ImageNoiseLevel NoiseLevel { get; set; } = ImageNoiseLevel.None;
         internal int BatchSize { get; set; } = 1;
         internal int CropSize { get; set; } = 128;
 
 
 
         public IResolutionResolver ResolutionResolver { get; set; }
+
 
 
 

@@ -80,7 +80,6 @@
     <Compile Include="Waifu2x\ConvertModeCapabilitiesDetector.cs" />
     <Compile Include="Waifu2x\Tasks\AnimationExtractorGifImageMagick.cs" />
     <Compile Include="Waifu2x\Tasks\IAnimationTaskCompileProcess.cs" />
-    <None Include="Waifu2x\Tasks\Old\GifTask.cs" />
     <Compile Include="Waifu2x\ImageResolution.cs" />
     <Compile Include="Waifu2x\Tasks\IAnimationExtractor.cs" />
     <Compile Include="Waifu2x\Tasks\ImageTask.cs" />

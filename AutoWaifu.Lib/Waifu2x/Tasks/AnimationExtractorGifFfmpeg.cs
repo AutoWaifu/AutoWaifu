@@ -23,7 +23,7 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
 
         public string[] SupportedAnimationTypes => new[] { ".gif" };
 
-        public async Task<AnimationExtractionResult> ExtractFrames(string animationPath, string outputFolderPath)
+        public async Task<AnimationExtractionResult> ExtractFrames(string animationPath, string outputFolderPath, Func<bool> shouldTerminateDelegate = null)
         {
             string animationName = Path.GetFileNameWithoutExtension(animationPath);
             string outputFramesFormat = Path.Combine(outputFolderPath, animationName) + "_%04d.png";
@@ -34,6 +34,9 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
             {
                 foreach (var frame in gifFrames)
                 {
+                    if (shouldTerminateDelegate())
+                        return null;
+
                     framerate += frame.AnimationDelay / 100.0 / gifFrames.Count;
                 }
             }
@@ -46,7 +49,10 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
                 RawParams = $"-i \"{animationPath}\" -vf fps={framerate} \"{outputFramesFormat}\""
             };
 
-            var ffmpegResult = await ffmpegInstance.Start(null, null);
+            var ffmpegResult = await ffmpegInstance.Start(null, null, shouldTerminateDelegate);
+            if (shouldTerminateDelegate())
+                return null;
+
             if (ffmpegResult.ExitCode != 0)
             {
                 Logger.Error("Failed to extract GIF frames for {InputAnimationPath} with ffmpeg, ffmpeg output was {@FfmpegOutput}", animationPath, ffmpegResult.OutputStreamData);
@@ -62,6 +68,9 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
 
                 foreach (var frame in animationFiles)
                 {
+                    if (shouldTerminateDelegate())
+                        return null;
+
                     using (MagickImage img = new MagickImage(frame))
                     {
                         for (int i = 0; i < DenoiseAmount; i++)

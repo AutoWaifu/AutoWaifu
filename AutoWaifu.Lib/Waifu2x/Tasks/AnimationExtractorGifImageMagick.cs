@@ -14,7 +14,7 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
 
         public int DespeckleAmount { get; set; }
 
-        public async Task<AnimationExtractionResult> ExtractFrames(string animationPath, string outputFolderPath)
+        public async Task<AnimationExtractionResult> ExtractFrames(string animationPath, string outputFolderPath, Func<bool> shouldTerminateDelegate = null)
         {
             return await Task.Run(() =>
             {
@@ -31,7 +31,10 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
                     int frameIndex = 0;
                     foreach (var frame in frames)
                     {
-                        string idxString = (frameIndex++).ToString();
+                        if (shouldTerminateDelegate())
+                            return null;
+
+                        string idxString = (frameIndex++).ToString();   
                         idxString = new string('0', 4 - idxString.Length) + idxString;
                         string outputFile = $"{Path.Combine(outputFolderPath, animationName)}_{idxString}.png";
 

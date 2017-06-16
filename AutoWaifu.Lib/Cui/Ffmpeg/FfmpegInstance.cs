@@ -70,10 +70,12 @@ namespace AutoWaifu.Lib.Cui.Ffmpeg
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
 
-            while (!process.WaitForExit(10))
+            while (!process.WaitForExit(1))
             {
-                if (shouldTerminateDelegate == null || !shouldTerminateDelegate())
-                    await Task.Delay(10);
+                if (shouldTerminateDelegate != null && shouldTerminateDelegate())
+                    break;
+
+                await Task.Delay(10);
             }
 
             if (shouldTerminateDelegate == null || !shouldTerminateDelegate())
@@ -83,7 +85,9 @@ namespace AutoWaifu.Lib.Cui.Ffmpeg
             }
             else
             {
-                process.Kill();
+                if (!process.HasExited)
+                    process.Kill();
+
                 runInfo.WasTerminated = true;
             }
 

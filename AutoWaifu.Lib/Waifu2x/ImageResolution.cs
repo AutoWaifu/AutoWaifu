@@ -22,5 +22,26 @@ namespace AutoWaifu.Lib.Waifu2x
             get { return (int)Math.Round(Height); }
             set { Height = value; }
         }
+
+
+        public static bool operator==(ImageResolution a, ImageResolution b)
+        {
+            bool aIsNull = object.ReferenceEquals(a, null);
+            bool bIsNull = object.ReferenceEquals(b, null);
+
+            if (aIsNull && bIsNull)
+                return true;
+
+            if (aIsNull != bIsNull)
+                return false;
+
+            return a.WidthInt == b.WidthInt &&
+                   a.HeightInt == b.HeightInt;
+        }
+
+        public static bool operator !=(ImageResolution a, ImageResolution b)
+        {
+            return !(a == b);
+        }
     }
 }

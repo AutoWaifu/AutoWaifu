@@ -109,8 +109,8 @@ namespace AutoWaifu2
                             .WriteTo.Observers(events => events.Subscribe(new LogObserver().OnMessage((level, msg) =>
                             {
 #if DEBUG
-                                if (level >= LogEventLevel.Error && Debugger.IsAttached)
-                                    Debugger.Break();
+                                //if (level >= LogEventLevel.Error && Debugger.IsAttached)
+                                //    Debugger.Break();
 #endif
 
                                 if (level >= LogEventLevel.Warning)
@@ -122,13 +122,14 @@ namespace AutoWaifu2
 
 
 
-            //MediaViewer_MediaPlayer.MediaOpened += MediaViewer_MediaPlayer_MediaOpened;
-            //MediaViewer_MediaPlayer.MediaEnded += MediaViewer_MediaPlayer_MediaEnded;
+            MediaViewer_MediaElementPlayer.MediaOpened += MediaViewer_MediaElementPlayer_MediaOpened;
+            MediaViewer_MediaElementPlayer.MediaEnded += MediaViewer_MediaElementPlayer_MediaEnded;
 
             this.Closing += MainWindow_Closing;
 
             ViewModel = new MainWindowViewModel();
             ViewModel.Initialize(this.Dispatcher);
+
             ViewModel.StartProcessing();
 
             ViewModel.PropertyChanged += ViewModel_PropertyChanged;
@@ -159,17 +160,17 @@ namespace AutoWaifu2
             }
         }
 
-        //private void MediaViewer_MediaPlayer_MediaOpened(object sender, RoutedEventArgs e)
-        //{
-        //    MediaViewer_MediaPlayer.Play();
-        //}
-        
+        private void MediaViewer_MediaElementPlayer_MediaOpened(object sender, RoutedEventArgs e)
+        {
+            MediaViewer_MediaElementPlayer.Play();
+        }
 
-        //private void MediaViewer_MediaPlayer_MediaEnded(object sender, RoutedEventArgs e)
-        //{
-        //    MediaViewer_MediaPlayer.Position = TimeSpan.FromMilliseconds(1);
-        //    MediaViewer_MediaPlayer.Play();
-        //}
+
+        private void MediaViewer_MediaElementPlayer_MediaEnded(object sender, RoutedEventArgs e)
+        {
+            MediaViewer_MediaElementPlayer.Position = TimeSpan.FromMilliseconds(1);
+            MediaViewer_MediaElementPlayer.Play();
+        }
 
         bool isClosing = false;
         bool canClose = false;
@@ -259,8 +260,7 @@ namespace AutoWaifu2
             {
                 Log.CloseAndFlush();
 
-                if (Directory.Exists(AppSettings.Main.TempDir))
-                    Directory.Delete(AppSettings.Main.TempDir, true);
+                ViewModel.CleanTempFolders();
 
                 FormatLog("log.txt");
                 FormatLog("log.json");
@@ -409,7 +409,7 @@ namespace AutoWaifu2
             if (MediaViewer_MediaList.SelectedItem == null)
             {
                 MediaViewer_MediaKitPlayer.Source = null;
-                //MediaViewer_MediaPlayer.Source = null;
+                MediaViewer_MediaElementPlayer.Source = null;
                 return;
             }
 
@@ -418,15 +418,32 @@ namespace AutoWaifu2
             if (selectedItem.State == TaskItemState.Done)
                 mediaPath = Path.Combine(AppSettings.Main.OutputDir, selectedItem.OutputPath);
 
-            MediaViewer_MediaKitPlayer.Source = new Uri(mediaPath, UriKind.Absolute);
-            MediaViewer_MediaKitPlayer.Loop = true;
+            string mediaExt = Path.GetExtension(mediaPath);
+            bool isImage = mediaExt == ".png" ||
+                                mediaExt == ".jpg" ||
+                                mediaExt == ".jpeg";
 
-            //MediaViewer_MediaPlayer.Source = new Uri(mediaPath, UriKind.Absolute);
-            //MediaViewer_MediaPlayer.Play();
 
-            
+
+            if (isImage)
+            {
+                MediaViewer_MediaElementPlayer.Source = new Uri(mediaPath, UriKind.Absolute);
+                MediaViewer_MediaElementPlayer.Play();
+
+                MediaViewer_MediaElementPlayer.Visibility = Visibility.Visible;
+                MediaViewer_MediaKitPlayer.Visibility = Visibility.Hidden;
+            }
+            else
+            {
+                MediaViewer_MediaKitPlayer.Source = new Uri(mediaPath, UriKind.Absolute);
+                MediaViewer_MediaKitPlayer.Loop = true;
+
+                MediaViewer_MediaElementPlayer.Visibility = Visibility.Hidden;
+                MediaViewer_MediaKitPlayer.Visibility = Visibility.Visible;
+            }
         }
         
+
 
         void FormatLog(string logPath)
         {
@@ -437,6 +454,16 @@ namespace AutoWaifu2
             //log = FileSystemHelper.AnonymizeFilePaths(log);
 
             File.WriteAllText(logPath, log);
+        }
+
+        private void StartProcessingButton_Click(object sender, RoutedEventArgs e)
+        {
+            ViewModel.StartProcessing();
+        }
+
+        private async void StopProcessingButton_Click(object sender, RoutedEventArgs e)
+        {
+            await ViewModel.StopProcessing();
         }
     }
 }

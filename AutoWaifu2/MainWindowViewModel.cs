@@ -12,8 +12,10 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
@@ -38,9 +40,43 @@ namespace AutoWaifu2
             this.PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
+        void ExtractEmbeddedUnmanagedAssemblies()
+        {
+            Logger.Debug("Loading embedded DLLs");
+
+            var assembly = Assembly.GetExecutingAssembly();
+            var fileNames = new[]
+            {
+                "DirectShowLib-2005.dll",
+                "EVRPresenter64.dll"
+            };
+
+            foreach (var fileName in fileNames)
+            {
+                if (File.Exists(fileName))
+                    continue;
+
+
+                var resourceName = $"AutoWaifu2.{fileName}";
+                var resourcePath = Path.GetFullPath(fileName);
+
+                Logger.Verbose("Extracting {DllName}", fileName);
+
+                using (Stream stream = assembly.GetManifestResourceStream(resourceName))
+                {
+                    byte[] bytes = new byte[stream.Length];
+                    stream.Read(bytes, 0, (int)stream.Length);
+
+                    File.WriteAllBytes(resourcePath, bytes);
+                }
+            }
+        }
+
 
         public MainWindowViewModel()
         {
+            ExtractEmbeddedUnmanagedAssemblies();
+
             Logger.Debug("Loading {@SettingsFile} as the settings data", RootConfig.SettingsFilePath);
 
             if (!File.Exists(RootConfig.SettingsFilePath) || RootConfig.ForceNewConfig)
@@ -65,21 +101,8 @@ namespace AutoWaifu2
 
             AppSettings.SetMainSettings(Settings);
 
-            try
-            {
-                if (Directory.Exists(AppSettings.Main.TempDir))
-                    Directory.Delete(AppSettings.Main.TempDir, true);
 
-                Directory.CreateDirectory(AppSettings.Main.InputDir);
-                Directory.CreateDirectory(AppSettings.Main.OutputDir);
 
-                Directory.CreateDirectory(AppSettings.Main.TempDirInput);
-                Directory.CreateDirectory(AppSettings.Main.TempDirOutput);
-            }
-            catch (Exception e)
-            {
-                Logger.Warning(e, "There was a problem setting up the input/output folders, is your settings.json correct?");
-            }
 
 
             TaskItems.AddedInputItem += (item) => PendingInputFiles.Add(item);
@@ -163,6 +186,10 @@ namespace AutoWaifu2
         
         public ObservableCollection<TaskItem> AllFiles { get; private set; }
 
+
+
+
+
         public int NumRunningImageTasks
         {
             get
@@ -236,7 +263,7 @@ namespace AutoWaifu2
             {
                 int numRemaining = PendingInputFiles.Count + ProcessingQueueFiles.Count;
 
-                if (numRemaining == 0 || _convertTimeHistory.Count == 0)
+                if (numRemaining == 0 || _convertTimeHistory.Count == 0 || !IsProcessing)
                     return null;
 
                 double avgTimeSeconds = _convertTimeHistory.Sum(ts => ts.TotalSeconds);
@@ -297,6 +324,12 @@ namespace AutoWaifu2
         {
             Logger.Verbose("Initializing window ViewModel - Load Input/Output file diffs");
 
+            if (!Directory.Exists(Settings.InputDir))
+                Directory.CreateDirectory(Settings.InputDir);
+
+            if (!Directory.Exists(Settings.OutputDir))
+                Directory.CreateDirectory(Settings.OutputDir);
+
             InitInputEnumeration();
             InitOutputEnumeration();
 
@@ -342,7 +375,58 @@ namespace AutoWaifu2
 
                 TaskItems.Add(newTaskItem);
             }
+
+            CleanTempFolders();
+
+            Directory.CreateDirectory(Settings.TempDir);
+            Directory.CreateDirectory(Settings.TempDirInput);
+            Directory.CreateDirectory(Settings.TempDirOutput);
         }
+
+
+
+
+        public void CleanTempFolders()
+        {
+            if (Directory.Exists(Settings.TempDirInput))
+                Directory.Delete(Settings.TempDirInput, true);
+
+            if (Directory.Exists(Settings.TempDirOutput))
+                CleanTempOutputFolder();
+
+            if (Directory.Exists(Settings.TempDir) &&
+                Directory.EnumerateFiles(Settings.TempDir, "*", SearchOption.AllDirectories).Count() == 0)
+            {
+                Directory.Delete(Settings.TempDir, true);
+            }
+        }
+
+        public void CleanTempOutputFolder()
+        {
+            var completedTasks = TaskItems[TaskItemState.Done];
+            var completedTaskFileNames = from task in completedTasks
+                                         select Path.GetFileNameWithoutExtension(task.RelativeFilePath);
+
+            var outputTempFolderFiles = Directory.EnumerateFiles(Settings.TempDirOutput, "*", SearchOption.AllDirectories);
+
+            var oldUpscaledFrameFiles = from file in outputTempFolderFiles
+                                        where completedTaskFileNames.Any(f => Path.GetFileName(file).StartsWith(f + "_"))
+                                        select file;
+
+            foreach (var file in outputTempFolderFiles)
+            {
+                var matchingCompletedTasks = completedTaskFileNames.Where(f => Path.GetFileName(file).StartsWith(f + "_")).ToList();
+
+            }
+
+            //this PART IS BROKEN
+
+            foreach (var oldframe in oldUpscaledFrameFiles)
+                File.Delete(oldframe);
+        }
+
+
+
 
 
         public bool IsProcessing => processingTask != null;
@@ -369,6 +453,8 @@ namespace AutoWaifu2
                 Logger.Fatal("Couldn't find ffmpeg.exe in {@FfmpegDir}", AppSettings.Main.FfmpegDir);
                 return;
             }
+
+            _lastTaskCompleteTime = new DateTime();
 
             continueProcessing = true;
             processingTask = Task.Run(async () =>
@@ -486,7 +572,11 @@ namespace AutoWaifu2
                                 {
                                     convertTaskQueue.TryCompleteTask(nextTask);
                                     nextTaskItem.RunningTask = null;
-                                    nextTaskItem.State = TaskItemState.Done;
+
+                                    if (!task.WasCanceled)
+                                        nextTaskItem.State = TaskItemState.Done;
+                                    else
+                                        nextTaskItem.State = TaskItemState.Pending;
 
                                     DateTime taskEndTime = DateTime.Now;
                                     _convertTimeHistory.Add(taskEndTime - taskStartTime);
@@ -527,20 +617,29 @@ namespace AutoWaifu2
 
                 Logger.Verbose("Canceling {@TaskCount} tasks", convertTaskQueue.RunningTasks.Count);
 
+                int numRemaining = convertTaskQueue.RunningTasks.Count;
+
                 foreach (var task in convertTaskQueue.RunningTasks)
                 {
-                    Logger.Verbose("Canceling task of type {@TaskType} for file {@InputFilePath}", task.GetType().Name, task.InputFilePath);
+                    Task.Run(async () =>
+                    {
+                        Logger.Verbose("Canceling task of type {@TaskType} for file {@InputFilePath}", task.GetType().Name, task.InputFilePath);
 
-                    var elapsedTime = await StopwatchExt.Profile(async () => await task.CancelTask());
+                        var elapsedTime = await StopwatchExt.Profile(async () => await task.CancelTask());
 
-                    Logger.Verbose("Canceled task, took {@CancelTimeMs}ms", elapsedTime.TotalMilliseconds);
+                        Logger.Verbose("Canceled task, took {@CancelTimeMs}ms", elapsedTime.TotalMilliseconds);
+
+                        Interlocked.Decrement(ref numRemaining);
+                    });
                 }
+
+                while (numRemaining > 0)
+                    await Task.Delay(1);
 
                 if (processingTask != null)
                 {
                     Logger.Verbose("Waiting for Task Queueing task to complete");
-                    //await processingTask.ConfigureAwait(true);
-
+                    
                     var elapsedTime = await StopwatchExt.Profile(async () => await processingTask);
 
                     Logger.Verbose("Task Queueing task exited, took {@CancelTimeMs}ms", elapsedTime.TotalMilliseconds);
@@ -574,6 +673,7 @@ namespace AutoWaifu2
         }
 
         #endregion
+
 
 
 

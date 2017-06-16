@@ -163,7 +163,7 @@ namespace AutoWaifu2
         public AnimationOutputMode VideoOutputType { get; set; } = AnimationOutputMode.MP4;
         
 
-        public bool ParallelizeAnimationConversion { get; set; } = true;
+        public bool ParallelizeAnimationConversion { get; set; } = false;
 
         float _animationParallelizationMaxThreadsFactor = 0.8f;
         public float AnimationParallelizationMaxThreadsFactor

@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace AutoWaifu.Lib.Waifu2x.Tasks
 {
-    public class AnimationExtractorVideo : IAnimationExtractor
+    public class AnimationExtractorVideo : Loggable, IAnimationExtractor
     {
         public AnimationExtractorVideo(string ffmpegPath)
         {
@@ -20,14 +20,25 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
 
         public string[] SupportedAnimationTypes => new[] { ".mp4" };
 
-        public async Task<AnimationExtractionResult> ExtractFrames(string animationPath, string outputFolderPath)
+        public async Task<AnimationExtractionResult> ExtractFrames(string animationPath, string outputFolderPath, Func<bool> shouldTerminateDelegate)
         {
             string animationName = Path.GetFileNameWithoutExtension(animationPath);
 
             var ffmpegInstance = new FfmpegInstance(FfmpegPath);
             ffmpegInstance.Options = new FfmpegRawOptions { RawParams = $"-i \"{animationPath}\" \"{outputFolderPath}\\{animationName}_%04d.png\"" };
 
-            var runInfo = await ffmpegInstance.Start(null, null);
+            var runInfo = await ffmpegInstance.Start(null, null, shouldTerminateDelegate);
+
+            if (shouldTerminateDelegate())
+                return null;
+
+            if (runInfo.ExitCode != 0)
+            {
+                Logger.Error("Running video frame extraction on {VideoPath} failed, where ffmpeg output: {FfmpegConsoleOutput}", animationPath, string.Join("\n", runInfo.OutputStreamData));
+                return null;
+            }
+
+
             var ffmpegOutput = string.Join("\n", runInfo.OutputStreamData);
 
             var fpsMatcher = new Regex(@"(\d+) fps");

@@ -37,6 +37,8 @@ namespace AutoWaifu.Lib.Waifu2x
         public WaifuConvertMode ConvertMode { get; set; }
         public ProcessPriorityClass ProcessPriority { get; set; } = ProcessPriorityClass.BelowNormal;
 
+        public bool WasCanceled { get; private set; } = false;
+
 
 
 
@@ -95,6 +97,8 @@ namespace AutoWaifu.Lib.Waifu2x
 
         public async Task<bool> CancelTask()
         {
+            WasCanceled = true;
+
             try
             {
                 if (!IsRunning)
