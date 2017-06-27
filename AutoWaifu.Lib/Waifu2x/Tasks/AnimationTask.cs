@@ -60,13 +60,8 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
             }
         }
 
-        protected override async Task<bool> Cancel()
+        void Cleanup()
         {
-            this._canceled = true;
-
-            while (this.IsRunning)
-                await Task.Delay(1);
-
             var inputFrameFiles = from file in Directory.EnumerateFiles(_tempInputDir)
                                   where Path.GetFileNameWithoutExtension(file).StartsWith(Path.GetFileNameWithoutExtension(InputFilePath))
                                   select file;
@@ -75,6 +70,16 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
             {
                 File.Delete(inputFrame);
             }
+        }
+
+        protected override async Task<bool> Cancel()
+        {
+            this._canceled = true;
+
+            while (this.IsRunning)
+                await Task.Delay(1);
+
+            Cleanup();
 
             return true;
         }
@@ -140,29 +145,29 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
                 {
                     Logger.Warning("Output resolution for animation frame {InputAnimation} is too high at {OutputResolutionMegapixels} megapixels, limiting output size to 8 megapixels.", InputFilePath, resolvedResolutionSize);
 
-                    outputResolutionResolver = new MegapixelResolutionResolver(8e6f);
+                    outputResolutionResolver = new TargetPixelCountResolutionResolver(8e6f);
                     outputImageResolution = outputResolutionResolver.Resolve(inputImageResolution);
                 }
             }
 
+            //  Take into account how output images are resized to have even dimensions after upscaling
+            outputImageResolution.WidthInt += outputImageResolution.WidthInt % 2;
+            outputImageResolution.HeightInt += outputImageResolution.HeightInt % 2;
+
             string firstPreviousResultOutputFramePath = Path.Combine(tempOutputFolderPath, Path.GetFileName(extractResult.ExtractedFiles.First()));
             if (File.Exists(firstPreviousResultOutputFramePath))
             {
-                using (var previousOutput = Image.FromFile(firstPreviousResultOutputFramePath))
-                {
-                    previousResultOutputImageResolution = new ImageResolution
-                    {
-                        WidthInt = previousOutput.Width,
-                        HeightInt = previousOutput.Height
-                    };
-                }
+                previousResultOutputImageResolution = ImageHelper.GetImageResolution(firstPreviousResultOutputFramePath);
             }
 
             if (previousResultOutputImageResolution != null &&
-                previousResultOutputImageResolution == outputImageResolution)
+                previousResultOutputImageResolution.Distance(outputImageResolution) < 20)
             {
                 canUseOldFrames = true;
             }
+
+
+            List<string> outputImageFiles = new List<string>();
 
 
             do
@@ -183,6 +188,8 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
                     string inputFramePath = Path.Combine(tempInputFolderPath, fileName);
                     string outputFramePath = Path.Combine(tempOutputFolderPath, fileName);
 
+                    outputImageFiles.Add(outputFramePath);
+
                     if (File.Exists(outputFramePath))
                     {
                         Logger.Information("Found old output frame {FrameIndex} for {OutputAnimationPath}", frameIdx, OutputFilePath);
@@ -195,6 +202,13 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
                         }
                         else
                         {
+                            var outputFrameRes = ImageHelper.GetImageResolution(outputFramePath);
+                            if (outputFrameRes != outputImageResolution)
+                            {
+                                Logger.Information("Using previous output frame {FrameIndex} for {OutputAnimationPath} but the image resolution is *slightly* off, resizing..");
+                                ImageHelper.ResizeImage(outputFramePath, outputImageResolution);
+                            }
+
                             numCompleted += 1;
 
                             continue;
@@ -249,11 +263,23 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
 
 
 
+            Logger.Information("Resizing output frames for {OutputAnimationPath} to have the same even dimensions");
+            foreach (var image in outputImageFiles)
+            {
+                var imageSize = ImageHelper.GetImageResolution(image);
+                if (imageSize == outputImageResolution)
+                    continue;
+
+                ImageHelper.ResizeImage(image, outputImageResolution);
+            }
+
 
             this._taskState = $"Combining {extractResult.ExtractedFiles.Count} frames to {Path.GetExtension(OutputFilePath)}";
             InvokeTaskStateChanged();
 
             bool success = await CompileProcess.Run(InputFilePath, OutputFilePath, tempOutputFolderPath, extractResult.Fps);
+
+            Cleanup();
 
             _isRunning = false;
             return success;

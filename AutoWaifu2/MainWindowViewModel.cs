@@ -3,6 +3,7 @@ using AutoWaifu.Lib.Cui.Ffmpeg;
 using AutoWaifu.Lib.FileSystem;
 using AutoWaifu.Lib.Waifu2x;
 using AutoWaifu.Lib.Waifu2x.Tasks;
+using Newtonsoft.Json;
 using PropertyChanged;
 using Serilog;
 using System;
@@ -75,12 +76,13 @@ namespace AutoWaifu2
 
         public MainWindowViewModel()
         {
-            ExtractEmbeddedUnmanagedAssemblies();
+            //ExtractEmbeddedUnmanagedAssemblies();
 
-            Logger.Debug("Loading {@SettingsFile} as the settings data", RootConfig.SettingsFilePath);
+            Logger.Debug("Looking for {@SettingsFile} as the settings data", RootConfig.SettingsFilePath);
 
             if (!File.Exists(RootConfig.SettingsFilePath) || RootConfig.ForceNewConfig)
             {
+                Logger.Debug("Could not find settings at {SettingsFile}, making new settings with defaults", RootConfig.SettingsFilePath);
                 Settings = new AppSettings();
                 Settings.SaveToFile(RootConfig.SettingsFilePath);
             }
@@ -187,7 +189,9 @@ namespace AutoWaifu2
         public ObservableCollection<TaskItem> AllFiles { get; private set; }
 
 
+        
 
+        
 
 
         public int NumRunningImageTasks
@@ -230,6 +234,8 @@ namespace AutoWaifu2
                 bool reinitialize = false;
                 if (_settings != null && (_settings.InputDir != value.InputDir || _settings.OutputDir != value.OutputDir))
                     reinitialize = true;
+
+                Logger.Information("Assigned AppSettings:\n{AppSettingsJson}", JsonConvert.SerializeObject(value, Formatting.Indented));
 
                 _settings = value;
                 if (convertTaskQueue != null && value != null)
@@ -347,6 +353,7 @@ namespace AutoWaifu2
 
 
 
+
             //  Run initial input/output diff for missing folders, and determine which files have already been processed
             var outputDiff = inputFolderEnumeration.DiffAgainst(outputFolderEnumeration);
             var missingFoldersInOutput = outputDiff.Where(diff => diff.Type == FolderDifference.DifferenceType.FolderMissing).ToArray();
@@ -404,25 +411,28 @@ namespace AutoWaifu2
         public void CleanTempOutputFolder()
         {
             var completedTasks = TaskItems[TaskItemState.Done];
+
+            var allTaskFileNames = from task in TaskItems
+                                   select Path.GetFileNameWithoutExtension(task.RelativeFilePath);
+
             var completedTaskFileNames = from task in completedTasks
                                          select Path.GetFileNameWithoutExtension(task.RelativeFilePath);
 
             var outputTempFolderFiles = Directory.EnumerateFiles(Settings.TempDirOutput, "*", SearchOption.AllDirectories);
-
-            var oldUpscaledFrameFiles = from file in outputTempFolderFiles
-                                        where completedTaskFileNames.Any(f => Path.GetFileName(file).StartsWith(f + "_"))
-                                        select file;
+            
 
             foreach (var file in outputTempFolderFiles)
             {
-                var matchingCompletedTasks = completedTaskFileNames.Where(f => Path.GetFileName(file).StartsWith(f + "_")).ToList();
-
+                if (completedTaskFileNames.Any(f => Path.GetFileName(file).StartsWith(f + "_")))
+                {
+                    File.Delete(file);
+                }
+                else if (!allTaskFileNames.Any(f => Path.GetFileName(file).StartsWith(f + "_")))
+                {
+                    File.Delete(file);
+                }
             }
-
-            //this PART IS BROKEN
-
-            foreach (var oldframe in oldUpscaledFrameFiles)
-                File.Delete(oldframe);
+            
         }
 
 
@@ -430,7 +440,7 @@ namespace AutoWaifu2
 
 
         public bool IsProcessing => processingTask != null;
-
+        public bool IsStopped => !IsProcessing;
 
 
 
@@ -605,6 +615,13 @@ namespace AutoWaifu2
                     await Task.Delay(1000);
                 }
             });
+
+
+
+
+
+            this.InvokePropertyChanged(nameof(IsProcessing));
+            this.InvokePropertyChanged(nameof(IsStopped));
         }
 
         public async Task StopProcessing()
@@ -653,6 +670,9 @@ namespace AutoWaifu2
             {
                 Logger.Error(e, "An error occurred while trying to stop processing tasks");
             }
+
+            this.InvokePropertyChanged(nameof(IsProcessing));
+            this.InvokePropertyChanged(nameof(IsStopped));
         }
 
         public async Task WaitForProcessingToFinish()

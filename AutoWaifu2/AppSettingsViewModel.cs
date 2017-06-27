@@ -1,4 +1,5 @@
-﻿using AutoWaifu.Lib.Waifu2x;
+﻿using AutoWaifu.Lib.Cui.Ffmpeg;
+using AutoWaifu.Lib.Waifu2x;
 using PropertyChanged;
 using System;
 using System.Collections.Generic;
@@ -15,79 +16,181 @@ namespace AutoWaifu2
     [AddINotifyPropertyChangedInterface]
     public class AppSettingsViewModel
     {
+        public AppSettingsViewModel()
+        {
+            this.Model = new AppSettings();
+        }
+
         public AppSettingsViewModel(AppSettings model)
         {
             this.Model = model;
         }
 
+        [Browsable(false)]
         public AppSettings Model { get; set; }
 
-        public Visibility VisibilityMaxSizeResolutionMode => ResolutionMode == ResolutionResolverMode.MaxSize ? Visibility.Visible : Visibility.Hidden;
-        public Visibility VisibilityMegapixelResolutionMode => ResolutionMode == ResolutionResolverMode.TargetMegapixels ? Visibility.Visible : Visibility.Hidden;
-        public Visibility VisibilityScaleFactorMode => ResolutionMode == ResolutionResolverMode.ScaleFactor ? Visibility.Visible : Visibility.Hidden;
+        [Browsable(false)]
+        public Visibility VisibilityMaxSizeResolutionMode
+        {
+            get => ResolutionMode == ResolutionResolverMode.MaxSize ? Visibility.Visible : Visibility.Hidden;
+            set { }
+        }
 
-        public Visibility VisibilityCompatibilityMode => GifMode == AnimationConvertMode.Compatibility ? Visibility.Visible : Visibility.Hidden;
-        public Visibility VisibilityCrfMode => GifMode == AnimationConvertMode.CRF ? Visibility.Visible : Visibility.Hidden;
+        [Browsable(false)]
+        public Visibility VisibilityMegapixelResolutionMode
+        {
+            get => ResolutionMode == ResolutionResolverMode.TargetMegapixels ? Visibility.Visible : Visibility.Hidden;
+            set { }
+        }
+
+        [Browsable(false)]
+        public Visibility VisibilityScaleFactorMode
+        {
+            get => ResolutionMode == ResolutionResolverMode.ScaleFactor ? Visibility.Visible : Visibility.Hidden;
+            set { }
+        }
+
+        [Browsable(false)]
+        public Visibility VisibilityCompatibilityMode
+        {
+            get => FfmpegConvertMode == FfmpegConvertModeEnum.Compatibility ? Visibility.Visible : Visibility.Hidden;
+            set { }
+        }
+
+        [Browsable(false)]
+        public Visibility VisibilityCrfMode
+        {
+            get => FfmpegConvertMode == FfmpegConvertModeEnum.CRF ? Visibility.Visible : Visibility.Hidden;
+            set { }
+        }
 
 
+
+
+
+        public bool AutoStartOnOpen
+        {
+            get => Model.AutoStartOnOpen;
+            set => Model.AutoStartOnOpen = value;
+        }
+
+
+        [Browsable(false)]
         public ResolutionResolverMode ResolutionMode
         {
-            get { return Model.ResolutionMode; }
-            set { Model.ResolutionMode = value; }
+            get => Model.ResolutionMode;
+            set => Model.ResolutionMode = value;
         }
 
+        [Browsable(false)]
         public WaifuConvertMode ConversionMode
         {
-            get { return Model.ConversionMode; }
-            set { Model.ConversionMode = value; }
+            get => Model.ConversionMode;
+            set => Model.ConversionMode = value;
         }
 
-        public AnimationConvertMode GifMode
+        [Browsable(false)]
+        public FfmpegConvertModeEnum FfmpegConvertMode
         {
-            get { return Model.AnimationMode; }
-            set { Model.AnimationMode = value; }
+            get => Model.FfmpegConvertMode;
+            set => Model.FfmpegConvertMode = value;
         }
 
+        [Browsable(false)]
         public ProcessPriorityClass ProcessPriority
         {
-            get { return Model.Priority; }
-            set { Model.Priority = value; }
+            get => Model.Priority;
+            set => Model.Priority = value;
         }
 
+        [Browsable(false)]
         public string InputDir
         {
-            get { return Model.InputDir; }
-            set { Model.InputDir = value; }
+            get => Model.InputDir;
+            set => Model.InputDir = value;
         }
 
+        [Browsable(false)]
         public string OutputDir
         {
-            get { return Model.OutputDir; }
-            set { Model.OutputDir = value; }
+            get => Model.OutputDir;
+            set => Model.OutputDir = value;
         }
 
+        [Browsable(false)]
         public string TempDir
         {
-            get { return Model.TempDir; }
-            set { Model.TempDir = value; }
+            get => Model.TempDir;
+            set => Model.TempDir = value;
         }
 
+        [Browsable(false)]
         public string Waifu2xCaffeDir
         {
-            get { return Model.Waifu2xCaffeDir; }
-            set { Model.Waifu2xCaffeDir = value; }
+            get => Model.Waifu2xCaffeDir;
+            set => Model.Waifu2xCaffeDir = value;
         }
 
+        [Browsable(false)]
         public string FfmpegDir
         {
-            get { return Model.FfmpegDir; }
-            set { Model.FfmpegDir = value; }
+            get => Model.FfmpegDir;
+            set => Model.FfmpegDir = value;
         }
 
+        [Browsable(false)]
         public int MaxParallel
         {
-            get { return Model.MaxParallel; }
-            set { Model.MaxParallel = value; }
+            get => Model.MaxParallel;
+            set => Model.MaxParallel = value;
+        }
+
+        [Category("Denoise")]
+        public int ImageDenoiseAmoint
+        {
+            get => Model.ImageDenoiseAmount;
+            set => Model.ImageDenoiseAmount = value;
+        }
+
+        [Category("Denoise")]
+        public int GifDenoiseAmount
+        {
+            get => Model.GifDenoiseAmount;
+            set => Model.GifDenoiseAmount = value;
+        }
+        
+        public ImportFileMethod FileDragMethod
+        {
+            get => Model.FileDragMethod;
+            set => Model.FileDragMethod = value; 
+        }
+
+        [Browsable(false)]
+        public FfmpegCompatibilityOptions FfmpegCompatibility
+        {
+            get => Model.FfmpegCompatibility;
+            set => Model.FfmpegCompatibility = value;
+        }
+
+        [Browsable(false)]
+        public FfmpegCrfEncodingOptions FfmpegCrf
+        {
+            get => Model.FfmpegCrf;
+            set => Model.FfmpegCrf = value;
+        }
+
+        [Category("Animation Output")]
+        public AnimationOutputMode GifOutputType
+        {
+            get => Model.GifOutputType;
+            set => Model.GifOutputType = value;
+        }
+
+        [Category("Animation Output")]
+        public AnimationOutputMode VideoOutputType
+        {
+            get => Model.VideoOutputType;
+            set => Model.VideoOutputType = value;
         }
     }
 }

@@ -24,6 +24,17 @@ namespace AutoWaifu.Lib.Waifu2x
         }
 
 
+
+        /// <summary>
+        /// Cartesian distance between this resolution and the other
+        /// </summary>
+        public float Distance(ImageResolution other)
+        {
+            return (float)Math.Sqrt(Math.Pow(Width - other.Width, 2) + Math.Pow(Height - other.Height, 2));
+        }
+
+
+
         public static bool operator==(ImageResolution a, ImageResolution b)
         {
             bool aIsNull = object.ReferenceEquals(a, null);

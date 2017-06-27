@@ -26,6 +26,8 @@ namespace AutoWaifu2
             AppDomain.CurrentDomain.FirstChanceException += CurrentDomain_FirstChanceException;
         }
 
+        
+
         private void App_DispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
         {
             Logger.Error(e.Exception, "An unhandled exception occurred within the Dispatcher");

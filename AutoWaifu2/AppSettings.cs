@@ -70,6 +70,22 @@ namespace AutoWaifu2
             }
         }
 
+        int _imageDenoiseAmt = 0;
+        public int ImageDenoiseAmount
+        {
+            get => _imageDenoiseAmt;
+            set
+            {
+                _imageDenoiseAmt = value;
+
+                if (_imageDenoiseAmt < 0)
+                    _imageDenoiseAmt = 0;
+
+                if (_imageDenoiseAmt > 10)
+                    _imageDenoiseAmt = 10;
+            }
+        }
+
 
 
         int _maxParallel = 2;
@@ -89,6 +105,7 @@ namespace AutoWaifu2
 
 
 
+
         public enum ImportFileMethod
         {
             Copy,
@@ -103,7 +120,7 @@ namespace AutoWaifu2
 
         public MaxSizeResolutionResolver MaxSizeResolution { get; set; } = new MaxSizeResolutionResolver(new ImageResolution { Width = 3000, Height = 3000 });
 
-        public MegapixelResolutionResolver MegapixelResolution { get; set; } = new MegapixelResolutionResolver(2000000.0f);
+        public TargetPixelCountResolutionResolver MegapixelResolution { get; set; } = new TargetPixelCountResolutionResolver(2000000.0f);
 
         public ScaleResolutionResolver ScaleResolution { get; set; } = new ScaleResolutionResolver(4.0f);
 
@@ -128,14 +145,14 @@ namespace AutoWaifu2
 
         public FfmpegCrfEncodingOptions FfmpegCrf { get; set; } = new FfmpegCrfEncodingOptions { CRF = 30 };
 
-        public enum AnimationConvertMode
+        public enum FfmpegConvertModeEnum
         {
             Compatibility,
             CRF
         }
 
         [JsonConverter(typeof(StringEnumConverter))]
-        public AnimationConvertMode AnimationMode { get; set; } = AnimationConvertMode.Compatibility;
+        public FfmpegConvertModeEnum FfmpegConvertMode { get; set; } = FfmpegConvertModeEnum.Compatibility;
 
 
 
@@ -192,6 +209,7 @@ namespace AutoWaifu2
         {
             return DeepCopy(this);
         }
+
 
 
 

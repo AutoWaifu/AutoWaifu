@@ -7,24 +7,24 @@ using System.Threading.Tasks;
 namespace AutoWaifu.Lib.Waifu2x
 {
     [Serializable]
-    public class MegapixelResolutionResolver : IResolutionResolver
+    public class TargetPixelCountResolutionResolver : IResolutionResolver
     {
-        public MegapixelResolutionResolver()
+        public TargetPixelCountResolutionResolver()
         {
 
         }
 
-        public MegapixelResolutionResolver(float desiredMegapixelCount)
+        public TargetPixelCountResolutionResolver(float desiredPixelCount)
         {
-            DesiredMegapixels = desiredMegapixelCount;
+            DesiredPixels = desiredPixelCount;
         }
 
-        public float DesiredMegapixels { get; set; }
+        public float DesiredPixels { get; set; }
 
         public ImageResolution Resolve(ImageResolution inputRes)
         {
             float inputMegapixels = inputRes.Width * inputRes.Height;
-            float scale = DesiredMegapixels / inputMegapixels;
+            float scale = (float)Math.Sqrt(DesiredPixels / inputMegapixels);
 
             return new ImageResolution
             {
@@ -34,3 +34,4 @@ namespace AutoWaifu.Lib.Waifu2x
         }
     }
 }
+

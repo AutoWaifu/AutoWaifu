@@ -1,6 +1,7 @@
 ﻿using AutoWaifu.Lib.Waifu2x;
 using Serilog;
 using Serilog.Events;
+using Serilog.Formatting.Display;
 using Serilog.Formatting.Json;
 using System;
 using System.Collections.Generic;
@@ -44,13 +45,11 @@ namespace AutoWaifu2
 
             public void OnNext(LogEvent value)
             {
-                var stringBuilder = new StringBuilder();
-                using (TextWriter writer = new StringWriter(stringBuilder))
-                {
-                    value.RenderMessage(writer);
-                    
-                    NewMessageEvent?.Invoke(value.Level, value.Level.ToString() + ": " + stringBuilder.ToString());
-                }
+                string message = value.RenderMessage();
+
+                string formatted = value.Level + ": " + message;
+
+                NewMessageEvent?.Invoke(value.Level, formatted);
             }
 
             event Action<LogEventLevel, string> NewMessageEvent;
@@ -98,28 +97,24 @@ namespace AutoWaifu2
             };
 #endif
 
+            string logOutputTemplate = "{Timestamp:HH:mm:ss} [{Level} {SourceContext}] {Message}{NewLine}{Exception}";
 
             Log.Logger = new LoggerConfiguration()
                             .MinimumLevel.Verbose()
-                            .WriteTo.File("log.txt")
+                            .Enrich.FromLogContext()
+                            .WriteTo.File("log.txt", outputTemplate: logOutputTemplate)
                             .WriteTo.File(new JsonFormatter(null, true), "log.json")
-//#if DEBUG
-//                            .WriteTo.Stackify()
-//#endif
                             .WriteTo.Observers(events => events.Subscribe(new LogObserver().OnMessage((level, msg) =>
                             {
-#if DEBUG
-                                //if (level >= LogEventLevel.Error && Debugger.IsAttached)
-                                //    Debugger.Break();
-#endif
-
                                 if (level >= LogEventLevel.Warning)
-                                    InfoLogPage.LogMessage(level, msg);
+                                    ErrorLogPage.LogMessage(level, msg);
 
-                                DebugLogPage.LogMessage(level, msg);
+                                FullLogPage.LogMessage(level, msg);
                             })))
                             .CreateLogger();
 
+
+            Logger.Verbose("AutoWaifu v{Version}", RootConfig.CurrentVersion);
 
 
             MediaViewer_MediaElementPlayer.MediaOpened += MediaViewer_MediaElementPlayer_MediaOpened;
@@ -130,7 +125,8 @@ namespace AutoWaifu2
             ViewModel = new MainWindowViewModel();
             ViewModel.Initialize(this.Dispatcher);
 
-            ViewModel.StartProcessing();
+            if (ViewModel.Settings.AutoStartOnOpen)
+                ViewModel.StartProcessing();
 
             ViewModel.PropertyChanged += ViewModel_PropertyChanged;
 
@@ -293,9 +289,33 @@ namespace AutoWaifu2
             if (MessageBoxResult.Yes != MessageBox.Show("Are you sure you want to restart these tasks? The current output files will be deleted.", "", MessageBoxButton.YesNo))
                 return;
 
+            MediaViewer_MediaList.SelectedItem = null;
+
             var items = OutputFilesList.SelectedItems.Cast<TaskItem>();
-            foreach (var item in items)
-                File.Delete(item.OutputPath);
+
+            Task.Run(async () =>
+            {
+                foreach (var item in items)
+                {
+                    bool wasSuccessful = true;
+
+                    do
+                    {
+                        try
+                        {
+                            File.Delete(item.OutputPath);
+                        }
+                        catch
+                        {
+                            wasSuccessful = false;
+                        }
+
+                        if (!wasSuccessful)
+                            await Task.Delay(10);
+                    }
+                    while (!wasSuccessful);
+                }
+            });
         }
 
         private void OutputCtxMenuOpenOutputFolder_Click(object sender, RoutedEventArgs e)
@@ -425,7 +445,7 @@ namespace AutoWaifu2
 
 
 
-            if (isImage)
+            if (isImage || !File.Exists("EVRPresenter64.dll") || !File.Exists("DirectShowLib-2005.dll"))
             {
                 MediaViewer_MediaElementPlayer.Source = new Uri(mediaPath, UriKind.Absolute);
                 MediaViewer_MediaElementPlayer.Play();
@@ -445,15 +465,17 @@ namespace AutoWaifu2
         
 
 
-        void FormatLog(string logPath)
+        string FormatLog(string logPath)
         {
-            var log = File.ReadAllText(logPath);
+            File.Copy("log.txt", "log2.txt");
+            var log = File.ReadAllText("log2.txt");
             log = log.Replace(@"\\", @"\");
             log = log.Replace("\\\"", "\"");
 
-            //log = FileSystemHelper.AnonymizeFilePaths(log);
+            File.Delete("log2.txt");
+            
 
-            File.WriteAllText(logPath, log);
+            return log;
         }
 
         private void StartProcessingButton_Click(object sender, RoutedEventArgs e)
@@ -464,6 +486,15 @@ namespace AutoWaifu2
         private async void StopProcessingButton_Click(object sender, RoutedEventArgs e)
         {
             await ViewModel.StopProcessing();
+        }
+
+        private void CopyFullLogButton_Click(object sender, RoutedEventArgs e)
+        {
+            string log = FormatLog("log.txt");
+
+            log = FileSystemHelper.AnonymizeFilePaths(log);
+
+            Clipboard.SetText(log);
         }
     }
 }

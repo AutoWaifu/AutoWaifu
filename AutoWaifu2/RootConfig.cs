@@ -13,7 +13,7 @@ namespace AutoWaifu2
 
         public static string EnabledFileTypeFilter = ".png|.jpeg|.jpg|.gif";
 
-        public static string CurrentVersion = "2.3.0";
+        public static string CurrentVersion = "2.3.1";
 
 #if DEBUG
         public static bool ForceNewConfig = false;

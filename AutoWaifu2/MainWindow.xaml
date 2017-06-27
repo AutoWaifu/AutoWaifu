@@ -10,7 +10,7 @@
         xmlns:xcad="http://schemas.xceed.com/wpf/xaml/avalondock"
         xmlns:MediaKit="clr-namespace:WPFMediaKit.DirectShow.Controls;assembly=WPFMediaKit"
         Title="MainWindow" MinWidth="800" MinHeight="480"
-        AllowDrop="True" PreviewDrop="Window_PreviewDrop" Drop="Window_Drop">
+        AllowDrop="True" PreviewDrop="Window_PreviewDrop" Drop="Window_Drop" Height="576" Width="979.333">
     <Window.Resources>
         <DataTemplate x:Key="TaskItemTemplate">
             <Label Margin="0" Content="{Binding TaskState}" />
@@ -73,33 +73,40 @@
                                     <ListBox ItemsSource="{Binding ProcessingQueueFiles}" ItemTemplate="{StaticResource TaskItemTemplate}" Grid.Column="1" Margin="4.667,10,9,10" />
                                     <Button Content="Settings" Margin="10,10,0,0" VerticalAlignment="Top" Height="20" Click="SettingsButton_Click" HorizontalAlignment="Left" Width="75"/>
                                     <Button Visibility="Hidden" Content="Restart All" Margin="0,0,5.333,10" Height="20" VerticalAlignment="Bottom" HorizontalAlignment="Right" Width="75"/>
-                                    <TextBlock Foreground="Gray" Margin="10,35,10.333,60" TextWrapping="Wrap" Text="{Binding TimeRemaining}"/>
-                                    <Button Content="Start" HorizontalAlignment="Left" Margin="10,0,0,36" Width="93" Height="19" VerticalAlignment="Bottom" Click="StartProcessingButton_Click"/>
-                                    <Button Content="Stop" HorizontalAlignment="Left" Margin="10,0,0,12" Width="93" Height="19" VerticalAlignment="Bottom" Click="StopProcessingButton_Click"/>
+                                    <!--<TextBlock Foreground="Gray" Margin="10,35,10.333,60" TextWrapping="Wrap" Text="{Binding TimeRemaining}"/>-->
+                                    <Button Content="Start" IsEnabled="{Binding IsStopped}" HorizontalAlignment="Left" Margin="10,0,0,36" Width="93" Height="19" VerticalAlignment="Bottom" Click="StartProcessingButton_Click"/>
+                                    <Button Content="Stop" IsEnabled="{Binding IsProcessing}" HorizontalAlignment="Left" Margin="10,0,0,12" Width="93" Height="19" VerticalAlignment="Bottom" Click="StopProcessingButton_Click"/>
                                 </Grid>
                             </xcad:LayoutAnchorable>
                         </xcad:LayoutAnchorablePane>
                         <xcad:LayoutAnchorablePane>
-                            <xcad:LayoutAnchorable Title="Log" CanClose="False" CanHide="False">
+                            <xcad:LayoutAnchorable Title="Errors" CanClose="False" CanHide="False">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="185*"/>
                                         <RowDefinition Height="38*"/>
                                     </Grid.RowDefinitions>
                                     <TabControl Margin="0,0,0.333,-0.333" Grid.RowSpan="2">
-                                        <TabItem Header="Info">
+                                        <TabItem Header="Errors">
                                             <Frame>
                                                 <Frame.Content>
-                                                    <local:LogPage x:Name="InfoLogPage" />
+                                                    <local:LogPage x:Name="ErrorLogPage" />
                                                 </Frame.Content>
                                             </Frame>
                                         </TabItem>
-                                        <TabItem Header="Debug">
-                                            <Frame>
-                                                <Frame.Content>
-                                                    <local:LogPage x:Name="DebugLogPage" />
-                                                </Frame.Content>
-                                            </Frame>
+                                        <TabItem Header="Log">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="44.667"/>
+                                                    <RowDefinition/>
+                                                </Grid.RowDefinitions>
+                                                <Button Click="CopyFullLogButton_Click" Margin="10,10,0,0" HorizontalAlignment="Left" Width="51" Height="25" VerticalAlignment="Top" Content="Copy" />
+                                                <Frame Grid.Row="1">
+                                                    <Frame.Content>
+                                                        <local:LogPage x:Name="FullLogPage" Margin="0,0.333,-0.333,-0.333" />
+                                                    </Frame.Content>
+                                                </Frame>
+                                            </Grid>
                                         </TabItem>
                                     </TabControl>
                                     <!--<Button Content="Anonymize Logs" Margin="0,10.333,10.333,0" Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Right" Width="Auto" Click="AnonymizeLogsButton_Click"/>-->

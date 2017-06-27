@@ -53,10 +53,10 @@ namespace AutoWaifu2
             { "cuDNN", WaifuConvertMode.cuDNN }
         };
 
-        Dictionary<string, AnimationConvertMode> StringGifModeMap = new Dictionary<string, AnimationConvertMode>
+        Dictionary<string, FfmpegConvertModeEnum> StringGifModeMap = new Dictionary<string, FfmpegConvertModeEnum>
         {
-            { "Compatibility", AnimationConvertMode.Compatibility },
-            { "Constant Rate Factor", AnimationConvertMode.CRF }
+            { "Compatibility", FfmpegConvertModeEnum.Compatibility },
+            { "Constant Rate Factor", FfmpegConvertModeEnum.CRF }
         };
 
         Dictionary<string, OutputCompatibilityType> StringGifCompatibilityModeMap = new Dictionary<string, OutputCompatibilityType>
@@ -161,6 +161,8 @@ namespace AutoWaifu2
                 FfmpegFilePathInput.Value = value.FfmpegDir;
 
                 //Process_ThreadCountIud.Value = value.MaxParallel;
+
+                //DataPropertyGrid.DataContext = value;
 
                 this.DataContext = value;
             }

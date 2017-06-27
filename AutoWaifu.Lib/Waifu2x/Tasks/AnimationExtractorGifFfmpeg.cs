@@ -59,14 +59,30 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
                 return null;
             }
             
-            var animationFiles = Directory.EnumerateFiles(outputFolderPath).Where(f => f.Contains(animationName));
+            var animationFiles = Directory.EnumerateFiles(outputFolderPath).Where(f => Path.GetFileName(f).StartsWith(animationName + "_")).ToList();
 
+            List<string> outputFiles = new List<string>();
+            for (int i = 1; i <= animationFiles.Count; i++)
+            {
+                string originalIdxString = i.ToString();
+                originalIdxString = new string('0', 4 - originalIdxString.Length) + originalIdxString;
+
+                string correctedIdxString = (i - 1).ToString();
+                correctedIdxString = new string('0', 4 - correctedIdxString.Length) + correctedIdxString;
+
+                string originalFile = $"{outputFolderPath}\\{animationName}_{originalIdxString}.png";
+                string correctedFile = $"{outputFolderPath}\\{animationName}_{correctedIdxString}.png";
+                File.Move(originalFile, correctedFile);
+
+
+                outputFiles.Add(correctedFile);
+            }
 
             if (DenoiseAmount > 0)
             {
                 Logger.Verbose("Frame extraction complete, denoising by {DenoiseAmount}x", DenoiseAmount);
 
-                foreach (var frame in animationFiles)
+                foreach (var frame in outputFiles)
                 {
                     if (shouldTerminateDelegate())
                         return null;
@@ -84,7 +100,7 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
             return new AnimationExtractionResult
             {
                 Fps = framerate,
-                ExtractedFiles = animationFiles.ToList()
+                ExtractedFiles = outputFiles
             };
         }
     }

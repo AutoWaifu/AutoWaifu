@@ -66,6 +66,16 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
 
 
 
+                    var inputResolution = ImageHelper.GetImageResolution(InputFilePath);
+                    var outputResolution = waifuCaffeInstance.Options.ResolutionResolver.Resolve(inputResolution);
+
+                    Logger.Debug("Upscaling {ImagePath} from {InputWidth}x{InputHeight} to {OutputWidth}x{OutputHeight}",
+                                                InputFilePath,
+                                                inputResolution.WidthInt, inputResolution.HeightInt,
+                                                outputResolution.WidthInt, outputResolution.HeightInt);
+
+
+
                     var waifuResult = await waifuCaffeInstance.Start(InputFilePath, OutputFilePath, () => this.terminate);
 
                     if (this.terminate)
@@ -81,7 +91,7 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
                     if (waifuResult.ExitCode == 1 || !File.Exists(OutputFilePath))
                     {
                         Logger.Error("Running waifu2x-caffe-cui on {@InputPath} failed, process terminated with exit code {@ExitCode}", InputFilePath, waifuResult.ExitCode);
-                        Logger.Error("WaifuCaffe output for task {@InputPath}:\n{@StandardOutputStream}", InputFilePath, waifuResult.OutputStreamData);
+                        Logger.Error("WaifuCaffe output for task {@InputPath}:\n{@StandardOutputStream}", InputFilePath, string.Join("\n", waifuResult.OutputStreamData));
                         return false;
                     }
 

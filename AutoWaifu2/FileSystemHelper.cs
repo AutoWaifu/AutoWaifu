@@ -12,7 +12,7 @@ namespace AutoWaifu2
     {
         public static string AnonymizeFilePaths(string stringContainingPaths)
         {
-            var filePathRegex = new Regex(@"\w+\:(?:\\\\?[\w\s\.\%\-]+)*");
+            var filePathRegex = new Regex(@"\w+\:\\(?:\\?[\w\s\.\%\-]+)*");
             var matches = filePathRegex.Matches(stringContainingPaths);
 
             foreach (Match match in matches)
