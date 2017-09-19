@@ -148,7 +148,10 @@ namespace AutoWaifu2
                             }
                         }
 
-                    case WaifuImageType.Mp4:
+                    case WaifuImageType.Mp4: goto case WaifuImageType.Video;
+                    case WaifuImageType.Webm: goto case WaifuImageType.Video;
+
+                    case WaifuImageType.Video:
                         return WaifuImageType.Mp4;
 
                     default:

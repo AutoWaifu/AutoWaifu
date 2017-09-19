@@ -29,6 +29,14 @@ namespace AutoWaifu.Lib.Cui.WaifuCaffe
             public bool WasTerminated;
         }
 
+        void RegisterLine(List<string> allLines, string line)
+        {
+            lock (allLines)
+            {
+                allLines.Add(line);
+            }
+        }
+
         public async Task<RunInfo> Start(string inputFilePath, string outputFilePath, Func<bool> shouldTerminateDelegate = null)
         {
             if (WaifuCaffePath == null || !File.Exists(WaifuCaffePath))
@@ -60,8 +68,8 @@ namespace AutoWaifu.Lib.Cui.WaifuCaffe
             var process = new Process();
             process.StartInfo = psi;
 
-            process.OutputDataReceived += (sender, data) => outputLines.Add("Info: " + data.Data);
-            process.ErrorDataReceived += (sender, data) => outputLines.Add("Error: " + data.Data);
+            process.OutputDataReceived += (sender, data) => RegisterLine(outputLines, "Info: " + data.Data);
+            process.ErrorDataReceived += (sender, data) => RegisterLine(outputLines, "Error: " + data.Data);
 
             process.Start();
 

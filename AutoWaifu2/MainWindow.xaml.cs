@@ -80,13 +80,7 @@ namespace AutoWaifu2
             {
                 Debug.WriteLine("Serilog: " + msg);
             });
-
-            AppDomain.CurrentDomain.DomainUnload += (o, e) =>
-            {
-                FormatLog("log.txt");
-                FormatLog("log.json");
-            };
-
+            
 
 #if DEBUG
             StackifyLib.Logger.ApiKey = null;
@@ -97,11 +91,12 @@ namespace AutoWaifu2
             };
 #endif
 
-            string logOutputTemplate = "{Timestamp:HH:mm:ss} [{Level} {SourceContext}] {Message}{NewLine}{Exception}";
+            string logOutputTemplate = "{Timestamp:HH:mm:ss} [{Level} {CallerMethodName}] {Message}{NewLine}{Exception}";
 
             Log.Logger = new LoggerConfiguration()
                             .MinimumLevel.Verbose()
                             .Enrich.FromLogContext()
+                            .Enrich.With(new SerilogCallingMethodEnricher())
                             .WriteTo.File("log.txt", outputTemplate: logOutputTemplate)
                             .WriteTo.File(new JsonFormatter(null, true), "log.json")
                             .WriteTo.Observers(events => events.Subscribe(new LogObserver().OnMessage((level, msg) =>
@@ -113,8 +108,6 @@ namespace AutoWaifu2
                             })))
                             .CreateLogger();
 
-
-            Logger.Verbose("AutoWaifu v{Version}", RootConfig.CurrentVersion);
 
 
             MediaViewer_MediaElementPlayer.MediaOpened += MediaViewer_MediaElementPlayer_MediaOpened;
@@ -444,9 +437,13 @@ namespace AutoWaifu2
                                 mediaExt == ".jpeg";
 
 
+            Log.Verbose("Selecting {ImageFile} in Media View", selectedItem.InputPath);
+
 
             if (isImage || !File.Exists("EVRPresenter64.dll") || !File.Exists("DirectShowLib-2005.dll"))
             {
+                Log.Verbose("Loading using WPF Core Media Element");
+
                 MediaViewer_MediaElementPlayer.Source = new Uri(mediaPath, UriKind.Absolute);
                 MediaViewer_MediaElementPlayer.Play();
 
@@ -455,6 +452,8 @@ namespace AutoWaifu2
             }
             else
             {
+                Log.Verbose("Loading using WPF Toolkit");
+
                 MediaViewer_MediaKitPlayer.Source = new Uri(mediaPath, UriKind.Absolute);
                 MediaViewer_MediaKitPlayer.Loop = true;
 

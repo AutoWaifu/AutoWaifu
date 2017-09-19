@@ -30,6 +30,14 @@ namespace AutoWaifu.Lib.Cui.Ffmpeg
 
         public IFfmpegOptions Options;
 
+        void RegisterLine(List<string> allLines, string line)
+        {
+            lock (allLines)
+            {
+                allLines.Add(line);
+            }
+        }
+
         public async Task<RunInfo> Start(string inputImagePathFormat, string outputFilePath, Func<bool> shouldTerminateDelegate = null)
         {
             if (FfmpegPath == null || !File.Exists(FfmpegPath))
@@ -62,8 +70,8 @@ namespace AutoWaifu.Lib.Cui.Ffmpeg
             var process = new Process();
             process.StartInfo = psi;
 
-            process.OutputDataReceived += (sender, data) => outputLines.Add("Info: " + data.Data);
-            process.ErrorDataReceived += (sender, data) => outputLines.Add("Error: " + data.Data);
+            process.OutputDataReceived += (sender, data) => RegisterLine(outputLines, "Info: " + data.Data);
+            process.ErrorDataReceived += (sender, data) => RegisterLine(outputLines, "Error: " + data.Data);
 
             process.Start();
 

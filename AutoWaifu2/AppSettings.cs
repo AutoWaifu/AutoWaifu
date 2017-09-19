@@ -43,6 +43,11 @@ namespace AutoWaifu2
         public ProcessPriorityClass Priority { get; set; } = ProcessPriorityClass.Idle;
 
 
+
+        public string IgnoredFilesFilter { get; set; } = ".mp3|.docx";
+
+
+
         public String OutputDir { get; set; } = Path.GetFullPath("./Output");
         public String InputDir { get; set; } = Path.GetFullPath("./Input");
         public String Waifu2xCaffeDir { get; set; } = Path.GetFullPath("./waifu2x-caffe");
@@ -135,9 +140,6 @@ namespace AutoWaifu2
         [JsonConverter(typeof(StringEnumConverter))]
         public ResolutionResolverMode ResolutionMode { get; set; } = ResolutionResolverMode.ScaleFactor;
 
-
-
-        public string UpdateVersionCheckUrl { get; set; } = "http://autowaifu.azurewebsites.net/update.txt";
 
 
 

@@ -116,8 +116,7 @@ namespace AutoWaifu2
             get => Model.OutputDir;
             set => Model.OutputDir = value;
         }
-
-        [Browsable(false)]
+        
         public string TempDir
         {
             get => Model.TempDir;
@@ -191,6 +190,12 @@ namespace AutoWaifu2
         {
             get => Model.VideoOutputType;
             set => Model.VideoOutputType = value;
+        }
+
+        public string IgnoredFileExtensions
+        {
+            get => Model.IgnoredFilesFilter;
+            set => Model.IgnoredFilesFilter = value;
         }
     }
 }

@@ -31,6 +31,8 @@ namespace AutoWaifu2
 
         ILogger Logger = Log.ForContext<MainWindowViewModel>();
 
+        const string SupportedFilesFilter = ".jpg|.jpeg|.png|.mp4|.gif|.webm|.avi|.mov|.wmv";
+
 
         public TaskItemCollection TaskItems { get; private set; } = new TaskItemCollection();
 
@@ -123,7 +125,7 @@ namespace AutoWaifu2
 
         private void WarnPathRename(string obj)
         {
-            Logger.Warning("A file or folder '{@Path}' was renamed, this behavior is not accounted for and may cause instability", obj);
+            Logger.Warning("A file or folder {Path} was renamed, this behavior is not accounted for and may cause instability", obj);
             MessageBox.Show("A file or folder was renamed; this might interfere with AutoWaifu operations! Please close AutoWaifu and complete your renaming, and restart it when you are done.");
         }
 
@@ -139,8 +141,25 @@ namespace AutoWaifu2
                 inputFolderEnumeration.FolderRenamed -= WarnPathRename;
             }
 
+            if (!Directory.Exists(Settings.InputDir))
+            {
+                inputFolderEnumeration = null;
+                Logger.Warning("Could not find input file directory {InputDir}", Settings.InputDir);
+                return;
+            }
+
+            string[] supportedFiles = SupportedFilesFilter.Split('|');
+            string[] ignoredFiles = Settings.IgnoredFilesFilter.Split('|');
+            ignoredFiles = ignoredFiles.Select(ext => ext.ToLower().Trim()).ToArray();
+
+            string[] enabledFiles = (from ext in supportedFiles
+                                     where !ignoredFiles.Any(ign => ign.ToLower().Trim('.') == ext.ToLower().Trim('.'))
+                                     select ext.StartsWith(".") ? ext : "." + ext).ToArray();
+
+            string enabledFilesFilter = string.Join("|", enabledFiles);
+
             inputFolderEnumeration = new FolderEnumeration(AppSettings.Main.InputDir);
-            inputFolderEnumeration.Filter = ".jpg|.jpeg|.png|.mp4|.gif";
+            inputFolderEnumeration.Filter = enabledFilesFilter;
 
             inputFolderEnumeration.FileAdded += InputFolderEnumeration_FileAdded;
             inputFolderEnumeration.FileRemoved += InputFolderEnumeration_FileRemoved;
@@ -163,8 +182,15 @@ namespace AutoWaifu2
                 outputFolderEnumeration.FolderRenamed -= WarnPathRename;
             }
 
+            if (!Directory.Exists(Settings.OutputDir))
+            {
+                outputFolderEnumeration = null;
+                Logger.Warning("Could not find input file directory {OutputDir}", Settings.OutputDir);
+                return;
+            }
+
             outputFolderEnumeration = new FolderEnumeration(AppSettings.Main.OutputDir);
-            outputFolderEnumeration.Filter = ".jpg|.jpeg|.png|.gif|.mp4";
+            outputFolderEnumeration.Filter = ".jpg|.jpeg|.png|.mp4|.gif|.webm|.avi|.mov|.wmv";
 
             outputFolderEnumeration.FileRemoved += OutputFolderEnumeration_FileRemoved;
             outputFolderEnumeration.FolderRemoved += OutputFolderEnumeration_FolderRemoved;
@@ -331,10 +357,28 @@ namespace AutoWaifu2
             Logger.Verbose("Initializing window ViewModel - Load Input/Output file diffs");
 
             if (!Directory.Exists(Settings.InputDir))
-                Directory.CreateDirectory(Settings.InputDir);
+            {
+                try
+                {
+                    Directory.CreateDirectory(Settings.InputDir);
+                }
+                catch (Exception e)
+                {
+                    Logger.Error("Couldn't create the input directory at {InputDir}: {Exception}", Settings.InputDir, e);
+                }
+            }
 
             if (!Directory.Exists(Settings.OutputDir))
-                Directory.CreateDirectory(Settings.OutputDir);
+            {
+                try
+                {
+                    Directory.CreateDirectory(Settings.OutputDir);
+                }
+                catch (Exception e)
+                {
+                    Logger.Error(e, "Couldn't create the output directory at {OutputDir}: {Exception}", Settings.OutputDir);
+                }
+            }
 
             InitInputEnumeration();
             InitOutputEnumeration();
@@ -351,7 +395,11 @@ namespace AutoWaifu2
             CompletedOutputFiles.CollectionChanged += (o, e) => InvokePropertyChanged(nameof(OutputFileListLabel));
 
 
-
+            if (inputFolderEnumeration == null || outputFolderEnumeration == null)
+            {
+                Logger.Error("Couldn't open one of the input or output file folders (or possibly both) - will not load image tasks");
+                return;
+            }
 
 
             //  Run initial input/output diff for missing folders, and determine which files have already been processed
@@ -410,6 +458,12 @@ namespace AutoWaifu2
 
         public void CleanTempOutputFolder()
         {
+            if (!Directory.Exists(Settings.TempDirOutput))
+            {
+                Logger.Warning("Could not find temp output directory {TempDirOutput}, will not clean", Settings.TempDirOutput);
+                return;
+            }
+
             var completedTasks = TaskItems[TaskItemState.Done];
 
             var allTaskFileNames = from task in TaskItems
@@ -452,16 +506,26 @@ namespace AutoWaifu2
             if (processingTask != null)
                 return;
 
-            if (!File.Exists(Path.Combine(AppSettings.Main.Waifu2xCaffeDir, "waifu2x-caffe-cui.exe")))
+            if (!File.Exists(Path.Combine(Settings.Waifu2xCaffeDir, "waifu2x-caffe-cui.exe")))
             {
                 Logger.Fatal("Couldn't find waifu2x-caffe-cui.exe in {@WaifuCaffeDir}", AppSettings.Main.Waifu2xCaffeDir);
                 return;
             }
 
-            if (!File.Exists(Path.Combine(AppSettings.Main.FfmpegDir, "ffmpeg.exe")))
+            if (!File.Exists(Path.Combine(Settings.FfmpegDir, "ffmpeg.exe")))
             {
                 Logger.Fatal("Couldn't find ffmpeg.exe in {@FfmpegDir}", AppSettings.Main.FfmpegDir);
                 return;
+            }
+
+            if (!Directory.Exists(Settings.InputDir))
+            {
+                Logger.Error("Will not start processing - couldn't find the input file directory {InputDir}", Settings.InputDir);
+            }
+
+            if (!Directory.Exists(Settings.OutputDir))
+            {
+                Logger.Error("Will not start processing - couldn't find the output file directory {OutputDir}", Settings.OutputDir);
             }
 
             _lastTaskCompleteTime = new DateTime();

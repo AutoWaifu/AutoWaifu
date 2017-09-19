@@ -211,59 +211,59 @@ namespace AutoWaifu2
         //        ViewModel.Model.FfmpegCompatibility.TargetCompatibility = Process_CbGifCompatibilityMode.ExtGetSelectedValue<OutputCompatibilityType>();
         //}
 
-        private async void CheckForUpdatesButton_Click(object sender, RoutedEventArgs e)
-        {
-            string updateCheckUrl = ViewModel.Model.UpdateVersionCheckUrl;
-            var httpClient = new HttpClient();
+        //private async void CheckForUpdatesButton_Click(object sender, RoutedEventArgs e)
+        //{
+        //    string updateCheckUrl = ViewModel.Model.UpdateVersionCheckUrl;
+        //    var httpClient = new HttpClient();
 
-            Logger.Debug("Checking for updates at {@UpdateCheckUrl}", updateCheckUrl);
-            var latestVersionRequestMessage = await httpClient.GetAsync(updateCheckUrl);
-            if (!latestVersionRequestMessage.IsSuccessStatusCode)
-            {
-                MessageBox.Show(this, $"Sorry, could not check for updates! ({latestVersionRequestMessage.ReasonPhrase})");
-                Logger.Warning("Failed to GET {@UpdateCheckUrl}, error {@StatusCode} - {@ReasonPhrase}", updateCheckUrl, latestVersionRequestMessage.StatusCode, latestVersionRequestMessage.ReasonPhrase);
-                return;
-            }
+        //    Logger.Debug("Checking for updates at {@UpdateCheckUrl}", updateCheckUrl);
+        //    var latestVersionRequestMessage = await httpClient.GetAsync(updateCheckUrl);
+        //    if (!latestVersionRequestMessage.IsSuccessStatusCode)
+        //    {
+        //        MessageBox.Show(this, $"Sorry, could not check for updates! ({latestVersionRequestMessage.ReasonPhrase})");
+        //        Logger.Warning("Failed to GET {@UpdateCheckUrl}, error {@StatusCode} - {@ReasonPhrase}", updateCheckUrl, latestVersionRequestMessage.StatusCode, latestVersionRequestMessage.ReasonPhrase);
+        //        return;
+        //    }
 
-            string file = await latestVersionRequestMessage.Content.ReadAsStringAsync();
-            var lines = file.Split('\n');
+        //    string file = await latestVersionRequestMessage.Content.ReadAsStringAsync();
+        //    var lines = file.Split('\n');
 
-            if (lines.Length < 2)
-            {
-                MessageBox.Show("The update file is invalid, contact the developer!");
-                return;
-            }
+        //    if (lines.Length < 2)
+        //    {
+        //        MessageBox.Show("The update file is invalid, contact the developer!");
+        //        return;
+        //    }
 
-            string version = lines[0].Trim();
-            string latestVersionUrl = lines[1].Trim();
+        //    string version = lines[0].Trim();
+        //    string latestVersionUrl = lines[1].Trim();
 
-            if (version == RootConfig.CurrentVersion)
-            {
-                MessageBox.Show($"You've got the latest version of AutoWaifu! (v{version})");
-            }
-            else
-            {
-                var shouldDownload = MessageBox.Show($"AutoWaifu v{version} is available at {latestVersionUrl}, would you like to download it?", "", MessageBoxButton.YesNo);
-                if (shouldDownload == MessageBoxResult.Yes)
-                {
-                    var latestBinaryMessage = await httpClient.GetAsync(latestVersionUrl);
-                    if (!latestBinaryMessage.IsSuccessStatusCode)
-                    {
-                        MessageBox.Show(this, $"Sorry, AutoWaifu version {version} couldn't be downloaded. ({latestBinaryMessage.ReasonPhrase})");
-                        Logger.Warning("Failed to GET {@VersionUrl}, error {@StatusCode} - {@ReasonPhrase}", latestVersionUrl, latestBinaryMessage.StatusCode, latestBinaryMessage.ReasonPhrase);
-                        return;
-                    }
-                    else
-                    {
-                        byte[] latestBinary = await latestBinaryMessage.Content.ReadAsByteArrayAsync();
-                        string fileName = Path.GetFileName(latestVersionUrl);
+        //    if (version == RootConfig.CurrentVersion)
+        //    {
+        //        MessageBox.Show($"You've got the latest version of AutoWaifu! (v{version})");
+        //    }
+        //    else
+        //    {
+        //        var shouldDownload = MessageBox.Show($"AutoWaifu v{version} is available at {latestVersionUrl}, would you like to download it?", "", MessageBoxButton.YesNo);
+        //        if (shouldDownload == MessageBoxResult.Yes)
+        //        {
+        //            var latestBinaryMessage = await httpClient.GetAsync(latestVersionUrl);
+        //            if (!latestBinaryMessage.IsSuccessStatusCode)
+        //            {
+        //                MessageBox.Show(this, $"Sorry, AutoWaifu version {version} couldn't be downloaded. ({latestBinaryMessage.ReasonPhrase})");
+        //                Logger.Warning("Failed to GET {@VersionUrl}, error {@StatusCode} - {@ReasonPhrase}", latestVersionUrl, latestBinaryMessage.StatusCode, latestBinaryMessage.ReasonPhrase);
+        //                return;
+        //            }
+        //            else
+        //            {
+        //                byte[] latestBinary = await latestBinaryMessage.Content.ReadAsByteArrayAsync();
+        //                string fileName = Path.GetFileName(latestVersionUrl);
 
-                        File.WriteAllBytes(fileName, latestBinary);
+        //                File.WriteAllBytes(fileName, latestBinary);
 
-                        MessageBox.Show($"v{version} has been downloaded to AutoWaifu's current folder as {fileName}. Please close AutoWaifu and open the downloaded version.");
-                    }
-                }
-            }
-        }
+        //                MessageBox.Show($"v{version} has been downloaded to AutoWaifu's current folder as {fileName}. Please close AutoWaifu and open the downloaded version.");
+        //            }
+        //        }
+        //    }
+        //}
     }
 }
