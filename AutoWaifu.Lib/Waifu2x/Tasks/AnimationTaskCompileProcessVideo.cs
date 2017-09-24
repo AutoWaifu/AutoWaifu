@@ -22,6 +22,8 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
 
         public bool Cancel { get; set; } = false;
 
+        public int MaxOutputResolutionMegapixels => 8;
+
         public async Task<bool> Run(string inputFilePath, string outputFilePath, string animFramesDirPath, double framerate)
         {
             Logger.Verbose("Running ffmpeg to combine frames from {AnimFramesDir} into {OutputFile}", animFramesDirPath, outputFilePath);

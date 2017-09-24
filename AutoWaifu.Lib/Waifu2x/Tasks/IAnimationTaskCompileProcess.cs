@@ -9,5 +9,7 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
     public interface IAnimationTaskCompileProcess
     {
         Task<bool> Run(string inputFilePath, string outputFilePath, string animFramesDirPath, double framerate);
+
+        int MaxOutputResolutionMegapixels { get; }
     }
 }

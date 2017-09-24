@@ -11,6 +11,12 @@ namespace AutoWaifu2
     {
         public static string SettingsFilePath = "settings.json";
 
+
+
+        public static string LogJsonFileLocation = "log.json";
+        public static string LogTextFileLocation = "log.txt";
+
+
         public static string EnabledFileTypeFilter = ".png|.jpeg|.jpg|.gif";
 
         public static string CurrentVersion = "2.3.1";
@@ -22,5 +28,9 @@ namespace AutoWaifu2
 #endif
 
         public static Dispatcher AppDispatcher = null;
+
+        public static bool IsHeadless = false;
+
+        public static bool UseStatusServer = false;
     }
 }

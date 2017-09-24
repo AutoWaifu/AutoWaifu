@@ -29,86 +29,47 @@ namespace AutoWaifu2
     /// </summary>
     public partial class MainWindow : Window
     {
-        ILogger Logger = Log.ForContext<MainWindow>();
+        ILogger Logger { get; set; }
+        ProcessingStatus currentStatus;
+        StatusServer statusServer;
 
-        class LogObserver : IObserver<LogEvent>
-        {
-            public void OnCompleted()
-            {
-                
-            }
-
-            public void OnError(Exception error)
-            {
-                
-            }
-
-            public void OnNext(LogEvent value)
-            {
-                string message = value.RenderMessage();
-
-                string formatted = value.Level + ": " + message;
-
-                NewMessageEvent?.Invoke(value.Level, formatted);
-            }
-
-            event Action<LogEventLevel, string> NewMessageEvent;
-
-            public LogObserver OnMessage(Action<LogEventLevel, string> msgCallback)
-            {
-                NewMessageEvent += msgCallback;
-                return this;
-            }
-        }
+        
 
         public MainWindow()
         {
             InitializeComponent();
 
-            var cmdLine = Environment.GetCommandLineArgs();
-            if (cmdLine.Any(c => c.ToLower() == "-headless"))
+            CheckExistingProcesses("waifu2x-caffe-cui");
+            CheckExistingProcesses("ffmpeg");
+
+            var cmdLine = Environment.GetCommandLineArgs().Select(s => s.ToLower());
+            if (cmdLine.Any(c => c == "-headless"))
+            {
+                RootConfig.IsHeadless = true;
                 this.Hide();
+            }
+            
+            if (cmdLine.Any(c => c == "-status-server"))
+            {
+                RootConfig.UseStatusServer = true;
+            }
 
             RootConfig.AppDispatcher = this.Dispatcher;
 
-            if (File.Exists("log.txt"))
-                File.Delete("log.txt");
-            if (File.Exists("log.json"))
-                File.Delete("log.json");
-
-            Serilog.Debugging.SelfLog.Enable((msg) =>
+            App.Logged += (level, msg) =>
             {
-                Debug.WriteLine("Serilog: " + msg);
-            });
-            
+                if (level >= LogEventLevel.Warning)
+                    ErrorLogPage.LogMessage(level, msg);
+
+                FullLogPage.LogMessage(level, msg);
 
 #if DEBUG
-            StackifyLib.Logger.ApiKey = null;
-            StackifyLib.Utils.StackifyAPILogger.LogEnabled = true;
-            StackifyLib.Utils.StackifyAPILogger.OnLogMessage += (string data) =>
-            {
-                Debug.WriteLine(data);
-            };
+                if (RootConfig.IsHeadless)
+                    Debug.WriteLine(msg);
 #endif
+            };
 
-            string logOutputTemplate = "{Timestamp:HH:mm:ss} [{Level} {CallerMethodName}] {Message}{NewLine}{Exception}";
-
-            Log.Logger = new LoggerConfiguration()
-                            .MinimumLevel.Verbose()
-                            .Enrich.FromLogContext()
-                            .Enrich.With(new SerilogCallingMethodEnricher())
-                            .WriteTo.File("log.txt", outputTemplate: logOutputTemplate)
-                            .WriteTo.File(new JsonFormatter(null, true), "log.json")
-                            .WriteTo.Observers(events => events.Subscribe(new LogObserver().OnMessage((level, msg) =>
-                            {
-                                if (level >= LogEventLevel.Warning)
-                                    ErrorLogPage.LogMessage(level, msg);
-
-                                FullLogPage.LogMessage(level, msg);
-                            })))
-                            .CreateLogger();
-
-
+            Logger = Log.ForContext<MainWindow>();
 
             MediaViewer_MediaElementPlayer.MediaOpened += MediaViewer_MediaElementPlayer_MediaOpened;
             MediaViewer_MediaElementPlayer.MediaEnded += MediaViewer_MediaElementPlayer_MediaEnded;
@@ -116,10 +77,52 @@ namespace AutoWaifu2
             this.Closing += MainWindow_Closing;
 
             ViewModel = new MainWindowViewModel();
+
+            //  Initialize manually since window resize won't be fired
+            if (RootConfig.IsHeadless)
+                InitializeViewModel();
+        }
+
+        bool didInitialize = false;
+        void InitializeViewModel()
+        {
+            if (this.didInitialize)
+                return;
+
             ViewModel.Initialize(this.Dispatcher);
 
-            if (ViewModel.Settings.AutoStartOnOpen)
+            this.currentStatus = new ProcessingStatus();
+
+            var viewModel = ViewModel;
+
+            void UpdateStatusFromViewModel()
+            {
+                this.currentStatus.NumComplete = viewModel.CompletedOutputFiles.Count;
+                this.currentStatus.NumPending = viewModel.PendingInputFiles.Count;
+                this.currentStatus.NumProcessing = viewModel.ProcessingQueueFiles.Count;
+                this.currentStatus.NumImagesProcessing = -1;
+                this.currentStatus.NumImagesProcessingPending = -1;
+
+                this.currentStatus.ProcessingQueueStates = string.Join("\n", viewModel.ProcessingQueueFiles.Select(ti => ti.TaskState));
+            }
+
+            UpdateStatusFromViewModel();
+
+            ViewModel.TaskItems.CollectionChanged += (s, e) =>
+            {
+                UpdateStatusFromViewModel();
+            };
+
+            ViewModel.TaskItems.TaskItemChanged += (t) =>
+            {
+                UpdateStatusFromViewModel();
+            };
+
+            if (ViewModel.Settings.AutoStartOnOpen || RootConfig.IsHeadless)
+            {
+                Logger.Debug("Auto-starting processing queue since AutoStartOnOpen=true, or running in headless mode");
                 ViewModel.StartProcessing();
+            }
 
             ViewModel.PropertyChanged += ViewModel_PropertyChanged;
 
@@ -127,6 +130,42 @@ namespace AutoWaifu2
             PendingFilesPane.Title = ViewModel.PendingFileListLabel;
             ProcessingFilesPane.Title = ViewModel.ProcessingFileListLabel;
             OutputFilesPane.Title = ViewModel.OutputFileListLabel;
+
+            this.statusServer = new StatusServer(this.currentStatus);
+            try
+            {
+                this.statusServer.Start();
+            }
+            catch (Exception e)
+            {
+                Logger.Error("Unable to start status server: {Exception}", e.ToString());
+            }
+
+            this.didInitialize = true;
+        }
+
+        void CheckExistingProcesses(string processName)
+        {
+            var processes = Process.GetProcesses()
+                                   .Where(p => p.ProcessName.Contains(processName))
+                                   .ToArray();
+
+            if (processes.Length > 0)
+            {
+                string message = $"There are {processes.Length} running instances of {processName}, would you like to terminate them?";
+
+                if (MessageBox.Show(message, "Confirm", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+                {
+                    foreach (var inst in processes)
+                        inst.Kill();
+                }
+            }
+        }
+
+        protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
+        {
+            base.OnRenderSizeChanged(sizeInfo);
+            InitializeViewModel();
         }
 
 
@@ -145,6 +184,13 @@ namespace AutoWaifu2
 
                 case nameof(MainWindowViewModel.OutputFileListLabel):
                     OutputFilesPane.Title = ViewModel.OutputFileListLabel;
+                    break;
+
+                case nameof(MainWindowViewModel.IsProcessing):
+                    if (ViewModel.IsProcessing)
+                        this.currentStatus.QueueStatus = "Running";
+                    else
+                        this.currentStatus.QueueStatus = "Stopped";
                     break;
             }
         }
@@ -247,12 +293,15 @@ namespace AutoWaifu2
 
             if (!e.Cancel)
             {
+                App.IsClosing = true;
                 Log.CloseAndFlush();
 
                 ViewModel.CleanTempFolders();
 
                 FormatLog("log.txt");
                 FormatLog("log.json");
+
+                this.statusServer?.Stop();
             }
         }
 

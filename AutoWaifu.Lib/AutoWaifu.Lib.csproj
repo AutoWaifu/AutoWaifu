@@ -49,7 +49,7 @@
       <HintPath>..\packages\Magick.NET-Q8-AnyCPU.7.0.5.900\lib\net40-client\Magick.NET-Q8-AnyCPU.dll</HintPath>
     </Reference>
     <Reference Include="Serilog, Version=2.0.0.0, Culture=neutral, PublicKeyToken=24c2f752a8e58a10, processorArchitecture=MSIL">
-      <HintPath>..\packages\Serilog.2.4.0\lib\net45\Serilog.dll</HintPath>
+      <HintPath>..\packages\Serilog.2.5.0\lib\net45\Serilog.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -62,7 +62,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ConcurrentHashSet.cs" />
     <Compile Include="Cui\Ffmpeg\FfmpegCompatibilityOptions.cs" />
     <Compile Include="Cui\Ffmpeg\FfmpegCrfEncodingOptions.cs" />
     <Compile Include="Cui\Ffmpeg\FfmpegInstance.cs" />
@@ -78,8 +77,9 @@
     <Compile Include="FileSystem\Caching\FolderImageCacheItem.cs" />
     <Compile Include="FileSystem\Caching\IFolderRecordCacheItem.cs" />
     <Compile Include="ImageHelper.cs" />
+    <Compile Include="Jobs\IJob.cs" />
+    <Compile Include="Jobs\JobPool.cs" />
     <Compile Include="Loggable.cs" />
-    <Compile Include="ObservableConcurrentHashSet.cs" />
     <Compile Include="Prediction\CompletedTaskMetric.cs" />
     <Compile Include="Prediction\PendingTask.cs" />
     <Compile Include="Prediction\UpscaleIteration.cs" />

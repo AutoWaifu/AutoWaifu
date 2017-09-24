@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -11,9 +12,9 @@ namespace AutoWaifu2
     {
         public TaskItemCollection()
         {
-            orderedItems.Add(TaskItemState.Processing, new List<TaskItem>());
-            orderedItems.Add(TaskItemState.Pending, new List<TaskItem>());
-            orderedItems.Add(TaskItemState.Done, new List<TaskItem>());
+            orderedItems.TryAdd(TaskItemState.Processing, new List<TaskItem>());
+            orderedItems.TryAdd(TaskItemState.Pending, new List<TaskItem>());
+            orderedItems.TryAdd(TaskItemState.Done, new List<TaskItem>());
 
             this.AddedInputItem += (item) => this.orderedItems[TaskItemState.Pending].Add(item);
             this.AddedItemProcessing += (item) => this.orderedItems[TaskItemState.Processing].Add(item);
@@ -41,7 +42,7 @@ namespace AutoWaifu2
 
 
 
-        Dictionary<TaskItemState, List<TaskItem>> orderedItems = new Dictionary<TaskItemState, List<TaskItem>>();
+        ConcurrentDictionary<TaskItemState, List<TaskItem>> orderedItems = new ConcurrentDictionary<TaskItemState, List<TaskItem>>();
 
         public TaskItem[] this[TaskItemState state]
         {
@@ -133,8 +134,13 @@ namespace AutoWaifu2
 
         private void Item_StateChanged(TaskItem item, TaskItemState oldState, TaskItemState newState)
         {
-            InvokeRemoveStateEvent(item, oldState);
-            InvokeAddStateEvent(item, newState);
+            if (oldState != newState)
+            {
+                InvokeRemoveStateEvent(item, oldState);
+                InvokeAddStateEvent(item, newState);
+            }
+
+            TaskItemChanged?.Invoke(item);
         }
 
 
@@ -152,5 +158,7 @@ namespace AutoWaifu2
         public event Action<TaskItem> RemovedInputItem;
         public event Action<TaskItem> RemovedItemProcessing;
         public event Action<TaskItem> RemovedOutputItem;
+
+        public event Action<TaskItem> TaskItemChanged;
     }
 }

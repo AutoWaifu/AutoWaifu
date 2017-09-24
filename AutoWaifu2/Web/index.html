@@ -1,0 +1,149 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>AutoWaifu Status Server</title>
+
+    <style>
+        * {
+            font-family: Helvetica, Arial, sans-serif;
+        }
+
+        main {
+            position: absolute;
+            left: 0;
+            right: 0;
+            margin: auto;
+            padding: 2em;
+            max-width: 1000px;
+        }
+
+        main > * {
+            width: 100%;
+            margin: 1em 3em;
+        }
+
+        .log-text {
+            max-height: 50em;
+            overflow-y: scroll;
+            word-break: break-word;
+
+            font-size: 0.8em;
+
+            /*max-width: 600px;*/
+            padding: 0 1em;
+        }
+
+        .log-text p {
+            padding: 0.5em;
+            border-radius: 0.25em;
+            border: 1px solid rgba(0, 0, 0, 0.075);
+        }
+    </style>
+</head>
+<body>
+
+    <main>
+        <section class="status">
+            <h3>Status: <% QueueStatus %></h3>
+            <form>
+                <label for="autoRefreshOption">Auto-refresh</label>
+                <input id="autoRefreshOption" type="checkbox" />
+                <script>
+                    if (location.hash.indexOf('autorefresh') != -1) {
+                        document.querySelector('#autoRefreshOption').checked = true;
+                    }
+                </script>
+            </form>
+            <h5>Library</h5>
+            <table>
+                <tr>
+                    <td>
+                        Files complete:
+                    </td>
+                    <td><% NumComplete %></td>
+                </tr>
+                <tr>
+                    <td>
+                        Files pending:
+                    </td>
+                    <td><% NumPending %></td>
+                </tr>
+                <tr>
+                    <td>
+                        Files in queue:
+                    </td>
+                    <td><% NumProcessing %></td>
+                </tr>
+            </table>
+            <h5>
+                Queue
+            </h5>
+            <table>
+                <tr>
+                    <td>
+                        Images currently processing:
+                    </td>
+                    <td><% NumImagesProcessing %></td>
+                </tr>
+                <tr>
+                    <td>
+                        Images pending processing:
+                    </td>
+                    <td><% NumImagesProcessingPending %></td>
+                </tr>
+            </table>
+            <p>
+                <% ProcessingQueueStates %>
+            </p>
+        </section>
+
+        <section class="log">
+            <h3>Log</h3>
+            <article class="log-text">
+                <% TextLogHtml %>
+            </article>
+        </section>
+    </main>
+
+    <script>
+        var stats = <% = %>;
+    </script>
+
+    <script>
+
+        (() => {
+
+            function startRefreshTimeout() {
+                return setTimeout(() => location.reload(), 3000);
+            }
+
+            var elAutoRefreshOption = document.querySelector('#autoRefreshOption');
+
+            var hash = location.hash.substring(1).toLowerCase();
+
+            if (hash === "autorefresh") {
+                console.log(elAutoRefreshOption.checked = true);
+            }
+
+            var refreshTimeoutHandle;
+
+            if (elAutoRefreshOption.checked)
+                refreshTimeoutHandle = startRefreshTimeout();
+
+            elAutoRefreshOption.addEventListener('change', function (e) {
+                if (elAutoRefreshOption.checked) {
+                    location.hash = 'autorefresh';
+                    location.reload();
+                }
+                else {
+                    clearTimeout(refreshTimeoutHandle);
+                    location.hash = '';
+                }
+            });
+
+        })();
+    </script>
+</body>
+</html>

@@ -17,6 +17,8 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
 
         public string FfmpegPath { get; }
 
+        public int MaxOutputResolutionMegapixels => 1000;
+
         public async Task<bool> Run(string inputFilePath, string outputFilePath, string animFramesDirPath, double framerate)
         {
             var videoProcess = new AnimationTaskCompileProcessVideo(FfmpegPath, new FfmpegCompatibilityOptions

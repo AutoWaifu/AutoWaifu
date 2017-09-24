@@ -70,6 +70,8 @@ namespace AutoWaifu2
             RootConfig.AppDispatcher.Invoke(() =>
             {
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TaskState)));
+
+                StateChanged?.Invoke(this, State, State);
             });
         }
 
@@ -80,7 +82,7 @@ namespace AutoWaifu2
             get
             {
                 string state = RelativeFilePath;
-                if (RunningTask ?.TaskState!= null && RunningTask.TaskState.Length != 0)
+                if (RunningTask?.TaskState != null && RunningTask.TaskState.Length != 0)
                     state = $"{state} - {RunningTask.TaskState}";
 
                 return state;

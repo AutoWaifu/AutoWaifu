@@ -141,11 +141,12 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
 
                 outputImageResolution = outputResolutionResolver.Resolve(inputImageResolution);
                 var resolvedResolutionSize = outputImageResolution.Width * outputImageResolution.Height / 1e6;
-                if (resolvedResolutionSize > 8) // Max output resolution is 8MP
+                var maxResolution = CompileProcess.MaxOutputResolutionMegapixels;
+                if (resolvedResolutionSize > maxResolution) // Max output resolution is 8MP
                 {
-                    Logger.Warning("Output resolution for animation frame {InputAnimation} is too high at {OutputResolutionMegapixels} megapixels, limiting output size to 8 megapixels.", InputFilePath, resolvedResolutionSize);
+                    Logger.Warning("Output resolution for animation frame {InputAnimation} is too high for the {ImageCompiler} animation frame compiler at {OutputResolutionMegapixels} megapixels, limiting output size to {MaxCompileResolutionMegapixels} megapixels.", InputFilePath, CompileProcess.GetType().Name, resolvedResolutionSize, maxResolution);
 
-                    outputResolutionResolver = new TargetPixelCountResolutionResolver(8e6f);
+                    outputResolutionResolver = new TargetPixelCountResolutionResolver(maxResolution * 1e6f);
                     outputImageResolution = outputResolutionResolver.Resolve(inputImageResolution);
                 }
             }
@@ -197,6 +198,9 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
                         if (!canUseOldFrames)
                         {
                             Logger.Information("Not using previous output frame {FrameIndex} for {OutputAnimationPath} since they do not match the current target resolution", frameIdx, this.OutputFilePath);
+
+                            Logger.Information("Current output resolution: {@CurrentOutputResolution}", outputImageResolution);
+                            Logger.Information("Previous output resolution: {@OldOutputResolution}", previousResultOutputImageResolution);
 
                             File.Delete(outputFramePath);
                         }

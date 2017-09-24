@@ -112,6 +112,7 @@ namespace AutoWaifu2
             TaskItems.AddedInputItem += (item) => PendingInputFiles.Add(item);
             TaskItems.AddedItemProcessing += (item) => ProcessingQueueFiles.Add(item);
             TaskItems.AddedOutputItem += (item) => CompletedOutputFiles.Add(item);
+
             TaskItems.RemovedInputItem += (item) => PendingInputFiles.Remove(item);
             TaskItems.RemovedItemProcessing += (item) => ProcessingQueueFiles.Remove(item);
             TaskItems.RemovedOutputItem += (item) => CompletedOutputFiles.Remove(item);
@@ -148,6 +149,9 @@ namespace AutoWaifu2
                 return;
             }
 
+            Logger.Verbose("Built-in supported extensions: {SupportedExtensions}", SupportedFilesFilter);
+            Logger.Verbose("User-defined ignored extensions: {IgnoredExtensions}", Settings.IgnoredFilesFilter);
+
             string[] supportedFiles = SupportedFilesFilter.Split('|');
             string[] ignoredFiles = Settings.IgnoredFilesFilter.Split('|');
             ignoredFiles = ignoredFiles.Select(ext => ext.ToLower().Trim()).ToArray();
@@ -158,6 +162,8 @@ namespace AutoWaifu2
 
             string enabledFilesFilter = string.Join("|", enabledFiles);
 
+            Logger.Verbose("Using search filter {SearchFilter}", enabledFilesFilter);
+
             inputFolderEnumeration = new FolderEnumeration(AppSettings.Main.InputDir);
             inputFolderEnumeration.Filter = enabledFilesFilter;
 
@@ -166,6 +172,10 @@ namespace AutoWaifu2
             inputFolderEnumeration.FolderAdded += InputFolderEnumeration_FolderAdded;
             inputFolderEnumeration.FileRenamed += WarnPathRename;
             inputFolderEnumeration.FolderRenamed += WarnPathRename;
+
+            int numFiles = inputFolderEnumeration.FilePaths.Count();
+
+            Logger.Verbose("Finished initializing input directory, found {NumFiles} files", numFiles);
         }
 
         
@@ -185,7 +195,7 @@ namespace AutoWaifu2
             if (!Directory.Exists(Settings.OutputDir))
             {
                 outputFolderEnumeration = null;
-                Logger.Warning("Could not find input file directory {OutputDir}", Settings.OutputDir);
+                Logger.Warning("Could not find output file directory {OutputDir}", Settings.OutputDir);
                 return;
             }
 
@@ -196,6 +206,10 @@ namespace AutoWaifu2
             outputFolderEnumeration.FolderRemoved += OutputFolderEnumeration_FolderRemoved;
             outputFolderEnumeration.FileRenamed += WarnPathRename;
             outputFolderEnumeration.FolderRenamed += WarnPathRename;
+
+            int numFiles = outputFolderEnumeration.FilePaths.Count();
+
+            Logger.Verbose("Finished initializing output directory, found {NumFiles} files", numFiles);
         }
 
 
@@ -401,6 +415,9 @@ namespace AutoWaifu2
                 return;
             }
 
+            Logger.Debug("Finished initializing input/output folders");
+            Logger.Debug("Generating diffs");
+
 
             //  Run initial input/output diff for missing folders, and determine which files have already been processed
             var outputDiff = inputFolderEnumeration.DiffAgainst(outputFolderEnumeration);
@@ -431,10 +448,24 @@ namespace AutoWaifu2
                 TaskItems.Add(newTaskItem);
             }
 
+            int numCompletedTasks = TaskItems.Count(ti => ti.State == TaskItemState.Done);
+            int numPendingTasks = TaskItems.Count(ti => ti.State == TaskItemState.Pending);
+
+            Logger.Debug("Done, found {NumCompleted} completed files and {NumPending} pending files", numCompletedTasks, numPendingTasks);
+
+            Logger.Debug("Cleaning temp folders");
+
             CleanTempFolders();
 
+            Logger.Debug("Regenerating temp folders");
+
+            Logger.Debug("Regenerating temp dir");
             Directory.CreateDirectory(Settings.TempDir);
+
+            Logger.Debug("Regenerating temp output dir");
             Directory.CreateDirectory(Settings.TempDirInput);
+
+            Logger.Debug("Regenerating temp input dir");
             Directory.CreateDirectory(Settings.TempDirOutput);
         }
 
@@ -450,7 +481,7 @@ namespace AutoWaifu2
                 CleanTempOutputFolder();
 
             if (Directory.Exists(Settings.TempDir) &&
-                Directory.EnumerateFiles(Settings.TempDir, "*", SearchOption.AllDirectories).Count() == 0)
+                !Directory.EnumerateFiles(Settings.TempDir, "*", SearchOption.AllDirectories).Any())
             {
                 Directory.Delete(Settings.TempDir, true);
             }
@@ -464,27 +495,28 @@ namespace AutoWaifu2
                 return;
             }
 
-            var completedTasks = TaskItems[TaskItemState.Done];
-
-            var allTaskFileNames = from task in TaskItems
-                                   select Path.GetFileNameWithoutExtension(task.RelativeFilePath);
-
-            var completedTaskFileNames = from task in completedTasks
-                                         select Path.GetFileNameWithoutExtension(task.RelativeFilePath);
-
-            var outputTempFolderFiles = Directory.EnumerateFiles(Settings.TempDirOutput, "*", SearchOption.AllDirectories);
+            var completedTasks = TaskItems[TaskItemState.Done].ToArray();
             
 
+            var pendingTaskFileNames = TaskItems[TaskItemState.Pending].Select(ti => Path.GetFileNameWithoutExtension(ti.RelativeFilePath)).ToArray();
+
+            var completedTaskFileNames = (from task in completedTasks
+                                          select Path.GetFileNameWithoutExtension(task.RelativeFilePath)).ToArray();
+
+            Logger.Verbose("Finding files in temp output dir");
+            var outputTempFolderFiles = Directory.EnumerateFiles(Settings.TempDirOutput, "*", SearchOption.AllDirectories).ToArray();
+
+            int numComplete = 0;
+            Logger.Verbose("Checking {NumFiles} files for old frames to keep", outputTempFolderFiles.Length);
             foreach (var file in outputTempFolderFiles)
             {
-                if (completedTaskFileNames.Any(f => Path.GetFileName(file).StartsWith(f + "_")))
+                string fileName = Path.GetFileName(file);
+                if (!pendingTaskFileNames.Any(f => fileName.StartsWith(f + "_")))
                 {
                     File.Delete(file);
                 }
-                else if (!allTaskFileNames.Any(f => Path.GetFileName(file).StartsWith(f + "_")))
-                {
-                    File.Delete(file);
-                }
+
+                ++numComplete;
             }
             
         }
@@ -503,6 +535,8 @@ namespace AutoWaifu2
 
         public void StartProcessing()
         {
+            Logger.Verbose("Called StartProcessing");
+
             if (processingTask != null)
                 return;
 
@@ -671,7 +705,7 @@ namespace AutoWaifu2
                     }
                     catch (Exception e)
                     {
-                        Logger.Error(e, "An unhandled top-level exception occurred while queuing tasks");
+                        Logger.Error("An unhandled top-level exception occurred while queuing tasks: " + e.ToString());
                         await Task.Delay(1000);
                     }
 
