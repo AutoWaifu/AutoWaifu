@@ -16,6 +16,8 @@ AutoWaifu monitors an input folder for any changes and loads existing files into
 - Support for alternative waifu2x converters
 - Start/stop processing from status server
 - Standardize context menu on all item lists
+- Smaller log output files
+- Faster loading of status server logs when there are many, many logs (will currently load and deserializes all 50MB of a JSON file for each request)
 - Profiles
 - Search item list
 - Sort item list
