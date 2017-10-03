@@ -19,34 +19,69 @@
             max-width: 1000px;
         }
 
-        main > * {
-            width: 100%;
-            margin: 1em 3em;
-        }
+            main > * {
+                width: 100%;
+                margin: 1em 3em;
+            }
 
-        .log-text {
-            max-height: 50em;
+        .log-container {
+            max-height: 500px;
             overflow-y: scroll;
             word-break: break-word;
-
-            font-size: 0.8em;
-
             /*max-width: 600px;*/
             padding: 0 1em;
         }
 
-        .log-text p {
-            padding: 0.5em;
-            border-radius: 0.25em;
+        .tab-char {
+            display: inline-block;
+            width: 2em;
+        }
+
+        .log-container p {
+            padding: 10px;
+            border-radius: 15px;
             border: 1px solid rgba(0, 0, 0, 0.075);
+            margin: 10px 0;
+            clear: both;
+        }
+
+        .log-container .verbose-entry,
+        .log-container .debug-entry {
+            font-size: 0.6em;
+            opacity: 0.8;
+            margin: 0.5em 0;
+            padding: 0.5em;
+            border-radius: 0.5em;
+            /* float: left; */
+            display: inline-block;
+            clear: none;
+            max-width: 25%;
+        }
+
+        .information-entry {
+        }
+
+        .warning-entry {
+            background-color: rgba(255, 130, 0, 0.25);
+        }
+
+        .error-entry {
+            background-color: rgba(255, 0, 0, 0.25);
+            font-size: 2em;
+        }
+
+        .fatal-entry {
+            font-size: 4em;
+            background-color: red;
+            color: white;
         }
     </style>
 </head>
 <body>
-
     <main>
         <section class="status">
-            <h3>Status: <% QueueStatus %></h3>
+
+            <h3>Status: <<< QueueStatus >>></h3>
             <form>
                 <label for="autoRefreshOption">Auto-refresh</label>
                 <input id="autoRefreshOption" type="checkbox" />
@@ -56,62 +91,83 @@
                     }
                 </script>
             </form>
+
             <h5>Library</h5>
             <table>
                 <tr>
-                    <td>
-                        Files complete:
-                    </td>
-                    <td><% NumComplete %></td>
+                    <td>Files complete:</td>
+                    <td><<< NumComplete >>></td>
                 </tr>
                 <tr>
-                    <td>
-                        Files pending:
-                    </td>
-                    <td><% NumPending %></td>
+                    <td>Files pending:</td>
+                    <td><<< NumPending >>></td>
                 </tr>
                 <tr>
-                    <td>
-                        Files in queue:
-                    </td>
-                    <td><% NumProcessing %></td>
+                    <td>Files in queue:</td>
+                    <td><<< NumProcessing >>></td>
                 </tr>
             </table>
-            <h5>
-                Queue
-            </h5>
+
+            <h5>Queue</h5>
             <table>
                 <tr>
-                    <td>
-                        Images currently processing:
-                    </td>
-                    <td><% NumImagesProcessing %></td>
+                    <td>Images currently processing:</td>
+                    <td><<< NumImagesProcessing >>></td>
                 </tr>
                 <tr>
-                    <td>
-                        Images pending processing:
-                    </td>
-                    <td><% NumImagesProcessingPending %></td>
+                    <td>Images pending processing:</td>
+                    <td><<< NumImagesProcessingPending >>></td>
                 </tr>
             </table>
-            <p>
-                <% ProcessingQueueStates %>
-            </p>
+
+            <p><<< ProcessingQueueStates >>></p>
         </section>
 
-        <section class="log">
-            <h3>Log</h3>
-            <article class="log-text">
-                <% TextLogHtml %>
-            </article>
+        <section id="log-section">
+            <h3>Log - <<< LogSize >>> messages</h3>
         </section>
     </main>
 
-    <script>
-        var stats = <% = %>;
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.slim.min.js"></script>
+
+    <script type="text/template" id="log-template">
+        <article class="log-container">
+            <% ParsedJsonLog.forEach(function(logMessage) { %>
+
+            <p class="<%= logMessage.Level.toLowerCase() %>-entry">
+                <%= realUnescape(logMessage.RenderedMessage)
+                .replace(/\n/g, '<br>')
+                .replace(/\t/g, '<span class="tab-char"></span>')
+                .replace(/  /g, '<span class="tab-char"></span>')
+                %>
+            </p>
+
+            <% }); %>
+        </article>
     </script>
 
     <script>
+        var stats = <<< = >>>;
+    </script>
+
+    <script>
+
+        function realUnescape(str) {
+            return str
+                .replace(/\\"/g, "\"")
+                .replace(/\\\\/g, "\\");
+        }
+
+        (() => {
+
+            var logTemplateSrc = $('#log-template').html();
+            var logTemplate = _.template(logTemplateSrc);
+
+            var $log = $(logTemplate(stats));
+            $log.appendTo($('#log-section'));
+
+        })();
 
         (() => {
 

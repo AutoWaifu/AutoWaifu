@@ -6,30 +6,51 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using AutoWaifu.Lib.Jobs;
 
 namespace AutoWaifu.Lib.Waifu2x.Tasks
 {
-    public class AnimationExtractorVideo : Loggable, IAnimationExtractor
+    public class AnimationExtractorVideo : Job, IAnimationExtractor
     {
         public AnimationExtractorVideo(string ffmpegPath)
         {
             FfmpegPath = ffmpegPath;
+
+            Exited += (j) => this.runningFfmpeg = null;
         }
+
+        string animationPath;
+        string outputFolderPath;
+        FfmpegInstance runningFfmpeg;
 
         public string FfmpegPath { get; }
 
-        public string[] SupportedAnimationTypes => new[] { ".mp4" };
+        public string[] SupportedFileTypes => new[] { ".mp4" };
 
-        public async Task<AnimationExtractionResult> ExtractFrames(string animationPath, string outputFolderPath, Func<bool> shouldTerminateDelegate)
+        public AnimationExtractionResult Result { get; private set; }
+
+        public override ResourceConsumptionLevel ResourceConsumption => ResourceConsumptionLevel.Medium;
+
+        public void Configure(string animationPath, string outputFolderPath)
         {
+            this.animationPath = animationPath;
+            this.outputFolderPath = outputFolderPath;
+        }
+
+        async Task<AnimationExtractionResult> ExtractFrames(string animationPath, string outputFolderPath)
+        {
+            Logger.Verbose("Trace");
+
             string animationName = Path.GetFileNameWithoutExtension(animationPath);
 
-            var ffmpegInstance = new FfmpegInstance(FfmpegPath);
-            ffmpegInstance.Options = new FfmpegRawOptions { RawParams = $"-i \"{animationPath}\" \"{outputFolderPath}\\{animationName}_%04d.png\"" };
+            this.runningFfmpeg = new FfmpegInstance(FfmpegPath);
+            this.runningFfmpeg.Options = new FfmpegRawOptions { RawParams = $"-i \"{animationPath}\" \"{outputFolderPath}\\{animationName}_%04d.png\"" };
 
-            var runInfo = await ffmpegInstance.Start(null, null, shouldTerminateDelegate);
+            await this.runningFfmpeg.Run().ConfigureAwait(false);
+            var runInfo = this.runningFfmpeg.Result;
+            this.runningFfmpeg = null;
 
-            if (shouldTerminateDelegate())
+            if (this.TerminateRequested)
                 return null;
 
             if (runInfo.ExitCode != 0)
@@ -38,6 +59,7 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
                 return null;
             }
 
+            Logger.Verbose("Successfully ran ffmpeg, capturing video FPS from ffmpeg output data");
 
             var ffmpegOutput = string.Join("\n", runInfo.OutputStreamData);
 
@@ -55,11 +77,20 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
                                                 int.Parse(durationParts[3]),
                                                 int.Parse(durationParts[4]));
 
+            Logger.Verbose("Detected video is {0} seconds long", duration.TotalSeconds);
+
             int numFrames = (int)Math.Round(duration.TotalSeconds * fps);
+
+            Logger.Verbose("Detected framerate is {0}fps", numFrames);
+
+            Logger.Verbose("Modifying output ffmpeg frames files from 1-indexed to 0-indexed");
 
             List<string> outputFiles = new List<string>();
             for (int i = 1; i <= numFrames; i++)
             {
+                if (this.TerminateRequested || this.SuspendRequested)
+                    break;
+
                 string originalIdxString = i.ToString();
                 originalIdxString = new string('0', 4 - originalIdxString.Length) + originalIdxString;
 
@@ -74,11 +105,33 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
                 outputFiles.Add(correctedFile);
             }
 
+            State = JobState.Completed;
+
             return new AnimationExtractionResult
             {
                 Fps = fps,
                 ExtractedFiles = outputFiles
             };
+        }
+
+        protected override Task DoRun()
+        {
+            Logger.Verbose("Trace");
+
+            if (this.animationPath == null)
+                throw new ArgumentNullException($"Tried to start a {nameof(AnimationExtractorVideo)} without configuring the input animation path");
+
+            if (this.outputFolderPath == null)
+                throw new ArgumentNullException($"Tried to start a {nameof(AnimationExtractorVideo)} without configuring the output folder path");
+
+            return ExtractFrames(this.animationPath, this.outputFolderPath);
+        }
+
+        protected override Task DoTerminate()
+        {
+            Logger.Verbose("Trace");
+
+            return TaskUtil.WaitUntil(() => IsRunExecuting == false);
         }
     }
 }

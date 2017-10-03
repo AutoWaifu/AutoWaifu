@@ -47,8 +47,8 @@ namespace AutoWaifu2
 
         public string RelativeFilePath { get; set; }
 
-        IWaifuTask runningTask = null;
-        public IWaifuTask RunningTask
+        WaifuTask runningTask = null;
+        public WaifuTask RunningTask
         {
             get => runningTask;
             set

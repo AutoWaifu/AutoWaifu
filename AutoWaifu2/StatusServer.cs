@@ -42,9 +42,21 @@ namespace AutoWaifu2
 
             server.Use(async (context, next) =>
             {
+                DateTime startTime = DateTime.Now;
+
                 try
                 {
-                    context.Response = new HttpResponse(HttpResponseCode.Ok, GenerateHtmlResponse(), true);
+                    if (context.Request.Uri.OriginalString.Trim('/').Length != 0)
+                    {
+                        context.Response = new HttpResponse(HttpResponseCode.NotFound, string.Empty, true);
+                        return;
+                    }
+                    else
+                    {
+                        string responseString = GenerateHtmlResponse();
+                        context.Response = new HttpResponse(HttpResponseCode.Ok, responseString, true);
+                        logger.Verbose("Rendered response HTML, took {ResponseDurationMs}ms to generate {ResponseSizeKb}KB response", (DateTime.Now - startTime).TotalMilliseconds, responseString.Length / 1024);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -103,23 +115,30 @@ namespace AutoWaifu2
             if (this.workingStatus == null)
                 throw new Exception();
 
-            string htmlTemplate = Embedded.GetTextFile("Web.index.html");
+            string htmlTemplate;
+            if (File.Exists(@"Web\index.html"))
+                htmlTemplate = FileExt.ReadAllText(@"Web\index.html");
+            else
+                htmlTemplate = Embedded.GetTextFile("Web.index.html");
+
             if (htmlTemplate == null)
                 throw new FileNotFoundException("Couldn't get the embedded HTML for the status server response");
 
             if (this.workingStatus == null)
-                throw new InvalidOperationException("");
+                throw new InvalidOperationException("Internal error - workingStatus is null");
 
 
             this.workingStatus.RefreshImplicits();
 
 
-            string dataJson = JsonConvert.SerializeObject(this.workingStatus, Formatting.Indented);
+            string dataJson = JsonConvert.SerializeObject(this.workingStatus, Formatting.None);
+            //  Minify JSON
+            //  https://stackoverflow.com/questions/8913138/minify-indented-json-string-in-net
+            dataJson = Regex.Replace(dataJson, "(\"(?:[^\"\\\\]|\\\\.)*\")|\\s+", "$1");
 
-            string responseHtml = Regex.Replace(htmlTemplate, @"\<\%(.*)\%\>", (match) =>
+            string responseHtml = Regex.Replace(htmlTemplate, @"\<\<\<(.*)\>\>\>", (match) =>
             {
                 string key = match.Groups[1].Value?.Trim();
-
                 string newValue;
 
                 if (string.IsNullOrEmpty(key) || key == "=")
@@ -153,7 +172,7 @@ namespace AutoWaifu2
                             }
                             else
                             {
-                                newValue = JsonConvert.SerializeObject(propertyValue);
+                                newValue = JsonConvert.SerializeObject(propertyValue, Formatting.None);
                             }
                         }
                     }

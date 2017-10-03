@@ -1,4 +1,5 @@
-﻿using System;
+﻿using AutoWaifu.Lib.Jobs;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -9,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace AutoWaifu.Lib.Waifu2x.Tasks
 {
-    public class AnimationTask : IWaifuTask
+    public class AnimationTask : WaifuTask
     {
         public AnimationTask(string inputFilePath, string outputFilePath, IAnimationTaskCompileProcess compileProcess, IAnimationExtractor animationFrameExtractor, IResolutionResolver resolutionResolver, WaifuConvertMode convertMode) : base(resolutionResolver, convertMode)
         {
@@ -32,36 +33,14 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
 
         string _taskState = null;
         public override string TaskState => this._taskState;
-
-        IEnumerable<IWaifuTask> subTasks = null;
-        public override IEnumerable<IWaifuTask> SubTasks => this.subTasks;
-
-        int numSubTasks = 0;
-        public override int NumSubTasks => numSubTasks;
-
+        
         bool _isRunning = false;
         public override bool IsRunning => this._isRunning;
 
-        public bool ParallelizeWaifuTasks { get; set; } = true;
-
-        int _maxWaifuTaskThreads = 2;
-        public int MaxWaifuTaskThreads
+        public void Cleanup()
         {
-            get
-            {
-                if (ParallelizeWaifuTasks)
-                    return _maxWaifuTaskThreads;
-                else
-                    return 1;
-            }
-            set
-            {
-                _maxWaifuTaskThreads = value;
-            }
-        }
+            Logger.Verbose("Trace");
 
-        void Cleanup()
-        {
             var inputFrameFiles = from file in Directory.EnumerateFiles(_tempInputDir)
                                   where Path.GetFileNameWithoutExtension(file).StartsWith(Path.GetFileNameWithoutExtension(InputFilePath))
                                   select file;
@@ -74,6 +53,7 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
 
         protected override async Task<bool> Cancel()
         {
+            Logger.Verbose("Trace");
             this._canceled = true;
 
             while (this.IsRunning)
@@ -86,6 +66,7 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
 
         protected override bool Dispose()
         {
+            Cleanup();
             return true;
         }
 
@@ -96,13 +77,25 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
 
         protected override async Task<bool> Start(string tempInputFolderPath, string tempOutputFolderPath, string waifu2xCaffePath, string ffmpegPath)
         {
+            Logger.Verbose("Trace");
+
+            //  INIT
             _isRunning = true;
             _tempInputDir = tempInputFolderPath;
 
             this._taskState = "extracting animation frames";
             InvokeTaskStateChanged();
 
-            var extractResult = await AnimationFrameExtractor.ExtractFrames(InputFilePath, tempInputFolderPath, () => this._canceled);
+            AnimationFrameExtractor.Configure(this.InputFilePath, tempInputFolderPath);
+
+            Logger.Debug("Extracting animation frames for {InputAnimation}", InputFilePath);
+
+            //  EXTRACT FRAMES
+            QueueJob(AnimationFrameExtractor);
+
+            await AnimationFrameExtractor;
+
+            Logger.Debug("Frame extraction ended");
 
             if (this._canceled)
             {
@@ -111,19 +104,20 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
                 return false;
             }
 
-            if (extractResult == null)
+            var extractResult = AnimationFrameExtractor.Result;
+
+            if (extractResult == null || AnimationFrameExtractor.State == JobState.Faulted)
             {
                 Logger.Error("An error occurred while extracting the animation frames for {InputFilePath} using {TaskExtractorTypeName}", this.InputFilePath, AnimationFrameExtractor.GetType().Name);
                 _isRunning = false;
                 return false;
             }
 
-            TaskQueue tasks = new TaskQueue();
 
-            int numCompleted = 0;
-            int numStarted = 0;
-            Queue<string> remainingImages = new Queue<string>(extractResult.ExtractedFiles);
 
+
+            //  CHECK OUTPUT RESOLTION LIMITS
+            Logger.Verbose("Checking output resolution limits on {ResolutionResolver}", this.OutputResolutionResolver.GetType().Name);
             var outputResolutionResolver = this.OutputResolutionResolver;
             
             ImageResolution inputImageResolution = null;
@@ -151,6 +145,9 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
                 }
             }
 
+            //  CHECK PREVIOUS OUTPUT FRAMES ARE SAME SIZE
+            Logger.Verbose("Checking current output against old output frame resolutions");
+
             //  Take into account how output images are resized to have even dimensions after upscaling
             outputImageResolution.WidthInt += outputImageResolution.WidthInt % 2;
             outputImageResolution.HeightInt += outputImageResolution.HeightInt % 2;
@@ -168,125 +165,161 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
             }
 
 
-            List<string> outputImageFiles = new List<string>();
+            //  FRAME UPSCALE
+            Logger.Verbose("Starting frame upscale");
+            
+            InvokeTaskStateChanged();
 
 
-            do
+            #region
+            /*
+
+            int frameIdx = ++numStarted;
+            Logger.Debug("Starting frame {@FrameIndex}/{@NumFrames}", frameIdx, extractResult.ExtractedFiles.Count);
+
+            string nextImgPath = remainingImages.Dequeue();
+            string fileName = Path.GetFileName(nextImgPath);
+
+            string inputFramePath = Path.Combine(tempInputFolderPath, fileName);
+            string outputFramePath = Path.Combine(tempOutputFolderPath, fileName);
+
+            outputImageFiles.Add(outputFramePath);
+
+            if (File.Exists(outputFramePath))
             {
-                tasks.QueueLength = MaxWaifuTaskThreads;
+                Logger.Information("Found old output frame {FrameIndex} for {OutputAnimationPath}", frameIdx, OutputFilePath);
 
-                while (tasks.CanQueueTask && remainingImages.Count > 0)
+                if (!canUseOldFrames)
                 {
-                    this._taskState = $"{numCompleted}/{extractResult.ExtractedFiles.Count} frames complete, {MaxWaifuTaskThreads} at a time";
-                    InvokeTaskStateChanged();
+                    Logger.Information("Not using previous output frame {FrameIndex} for {OutputAnimationPath} since they do not match the current target resolution", frameIdx, this.OutputFilePath);
 
-                    int frameIdx = ++numStarted;
-                    Logger.Debug("Starting frame {@FrameIndex}/{@NumFrames}", frameIdx, extractResult.ExtractedFiles.Count);
+                    Logger.Information("Current output resolution: {@CurrentOutputResolution}", outputImageResolution);
+                    Logger.Information("Previous output resolution: {@OldOutputResolution}", previousResultOutputImageResolution);
 
-                    string nextImgPath = remainingImages.Dequeue();
-                    string fileName = Path.GetFileName(nextImgPath);
-
-                    string inputFramePath = Path.Combine(tempInputFolderPath, fileName);
-                    string outputFramePath = Path.Combine(tempOutputFolderPath, fileName);
-
-                    outputImageFiles.Add(outputFramePath);
-
-                    if (File.Exists(outputFramePath))
+                    File.Delete(outputFramePath);
+                }
+                else
+                {
+                    var outputFrameRes = ImageHelper.GetImageResolution(outputFramePath);
+                    if (outputFrameRes != outputImageResolution)
                     {
-                        Logger.Information("Found old output frame {FrameIndex} for {OutputAnimationPath}", frameIdx, OutputFilePath);
-
-                        if (!canUseOldFrames)
-                        {
-                            Logger.Information("Not using previous output frame {FrameIndex} for {OutputAnimationPath} since they do not match the current target resolution", frameIdx, this.OutputFilePath);
-
-                            Logger.Information("Current output resolution: {@CurrentOutputResolution}", outputImageResolution);
-                            Logger.Information("Previous output resolution: {@OldOutputResolution}", previousResultOutputImageResolution);
-
-                            File.Delete(outputFramePath);
-                        }
-                        else
-                        {
-                            var outputFrameRes = ImageHelper.GetImageResolution(outputFramePath);
-                            if (outputFrameRes != outputImageResolution)
-                            {
-                                Logger.Information("Using previous output frame {FrameIndex} for {OutputAnimationPath} but the image resolution is *slightly* off, resizing..");
-                                ImageHelper.ResizeImage(outputFramePath, outputImageResolution);
-                            }
-
-                            numCompleted += 1;
-
-                            continue;
-                        }
+                        Logger.Information("Using previous output frame {FrameIndex} for {OutputAnimationPath} but the image resolution is *slightly* off, resizing..");
+                        ImageHelper.ResizeImage(outputFramePath, outputImageResolution);
                     }
 
-                    var imageTask = new ImageTask(inputFramePath, outputFramePath, this.OutputResolutionResolver, this.ConvertMode);
-                    imageTask.TaskCompleted += (task) =>
+                    numCompleted += 1;
+                }
+            }
+
+    */
+            #endregion
+
+
+            var imageTasks = (from inputFileName in extractResult.ExtractedFiles
+                              select new ImageTask(inputFilePath: Path.Combine(tempInputFolderPath, inputFileName),
+                                                   outputFilePath: Path.Combine(tempOutputFolderPath, inputFileName),
+                                                   outputResolutionResolver: outputResolutionResolver,
+                                                   convertMode: ConvertMode)).ToArray();
+
+            int frameIdx = 0;
+            foreach (var task in imageTasks)
+            {
+                bool runTask = true;
+
+                if (File.Exists(task.OutputFilePath))
+                {
+                    Logger.Information("Found old output frame {FrameIndex} for {OutputAnimationPath}", frameIdx, OutputFilePath);
+
+                    if (!canUseOldFrames)
                     {
-                        Interlocked.Increment(ref numCompleted);
-                        tasks.TryCompleteTask(task);
-                    };
+                        Logger.Information("Not using previous output frame {FrameIndex} for {OutputAnimationPath} since they do not match the current target resolution", frameIdx, this.OutputFilePath);
 
-                    imageTask.TaskFaulted += (task, reason) =>
+                        Logger.Information("Current output resolution: {@CurrentOutputResolution}", outputImageResolution);
+                        Logger.Information("Previous output resolution: {@OldOutputResolution}", previousResultOutputImageResolution);
+
+                        File.Delete(OutputFilePath);
+                    }
+                    else
                     {
-                        Logger.Debug("ImageTask failed for frame {@FrameIndex}/{@NumFrames} while upscaling {@InputFile} to {@OutputFile}", frameIdx, extractResult.ExtractedFiles.Count, inputFramePath, outputFramePath);
-                    };
+                        var outputFrameRes = ImageHelper.GetImageResolution(task.OutputFilePath);
+                        if (outputFrameRes != outputImageResolution)
+                        {
+                            Logger.Information("Using previous output frame {FrameIndex} for {OutputAnimationPath} but the image resolution is *slightly* off, resizing..");
+                            ImageHelper.ResizeImage(task.OutputFilePath, outputImageResolution);
+                        }
 
-                    imageTask.StartTask(tempInputFolderPath, tempOutputFolderPath, waifu2xCaffePath, ffmpegPath);
-
-                    tasks.TryQueueTask(imageTask);
+                        runTask = false;
+                    }
                 }
 
-                numSubTasks = tasks.RunningTasks.Count;
+                if (runTask)
+                    task.StartTask(tempInputFolderPath, tempOutputFolderPath, waifu2xCaffePath, ffmpegPath);
 
-                await Task.Delay(10);
+                frameIdx++;
+            }
 
-            } while (numCompleted < extractResult.ExtractedFiles.Count && !_canceled);
+            Logger.Verbose("Finished launching ImageTasks and checking old frames");
+            Logger.Verbose("Waiting for ImageTasks to complete and polling jobs");
 
+            this._taskState = "Upscaling images";
+            InvokeTaskStateChanged();
 
-
-
-
-
-
-
+            while (imageTasks.Any(t => t.IsRunning))
+            {
+                var newTaskJobs = imageTasks.SelectMany(t => t.PollPendingJobs()).ToArray();
+                if (newTaskJobs.Length > 0)
+                {
+                    Logger.Verbose("Found {NumSubJobs} jobs to queue", newTaskJobs.Length);
+                    QueueJobs(newTaskJobs);
+                }
+                await Task.Delay(1).ConfigureAwait(false);
+            }
 
             if (this._canceled)
+                return false;
+
+            if (imageTasks.Any(t => t.WasFaulted))
             {
-                Logger.Debug("Canceling frame upconversion");
-
-                foreach (var task in tasks.RunningTasks)
-                    task.CancelTask();
-
-                while (tasks.RunningTasks.Count > 0)
-                    await Task.Delay(1);
-
-                this._isRunning = false;
-                Logger.Debug("AnimationTask has been canceled");
+                Logger.Error("An error occurred while processing one of the frames for {InputAnimationPath}", InputFilePath);
                 return false;
             }
 
+            Logger.Verbose("Finished waiting for image tasks, none faulted");
+
+            IEnumerable<string> outputImageFiles = from inputFileName in extractResult.ExtractedFiles
+                                                  select Path.Combine(tempOutputFolderPath, inputFileName);
 
 
-            Logger.Information("Resizing output frames for {OutputAnimationPath} to have the same even dimensions");
-            foreach (var image in outputImageFiles)
+            Logger.Debug("Resizing output frames for {OutputAnimationPath} to have even dimensions", OutputFilePath);
+
+            var parallelResult = Parallel.ForEach(outputImageFiles, new ParallelOptions { MaxDegreeOfParallelism = 4 }, (file) =>
             {
-                var imageSize = ImageHelper.GetImageResolution(image);
+                var imageSize = ImageHelper.GetImageResolution(file);
                 if (imageSize == outputImageResolution)
-                    continue;
+                    return;
 
-                ImageHelper.ResizeImage(image, outputImageResolution);
-            }
+                ImageHelper.ResizeImage(file, outputImageResolution);
+            });
 
+            await TaskUtil.WaitUntil(() => parallelResult.IsCompleted).ConfigureAwait(false);
 
             this._taskState = $"Combining {extractResult.ExtractedFiles.Count} frames to {Path.GetExtension(OutputFilePath)}";
             InvokeTaskStateChanged();
 
-            bool success = await CompileProcess.Run(InputFilePath, OutputFilePath, tempOutputFolderPath, extractResult.Fps);
+            CompileProcess.Configure(InputFilePath, OutputFilePath, tempOutputFolderPath, extractResult.Fps);
+            QueueJob(CompileProcess);
+            await TaskUtil.WaitUntil(() => !CompileProcess.IsInQueue());
+
+            if (CompileProcess.State != JobState.Completed)
+            {
+                Logger.Error("Failed to compile animation frames into {OutputFileExt} using {CompileProcessName}", Path.GetExtension(OutputFilePath), CompileProcess.GetType().Name);
+                return false;
+            }
 
             Cleanup();
 
             _isRunning = false;
-            return success;
+            return true;
         }
     }
 }

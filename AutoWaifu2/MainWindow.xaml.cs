@@ -131,14 +131,17 @@ namespace AutoWaifu2
             ProcessingFilesPane.Title = ViewModel.ProcessingFileListLabel;
             OutputFilesPane.Title = ViewModel.OutputFileListLabel;
 
-            this.statusServer = new StatusServer(this.currentStatus);
-            try
+            if (RootConfig.UseStatusServer)
             {
-                this.statusServer.Start();
-            }
-            catch (Exception e)
-            {
-                Logger.Error("Unable to start status server: {Exception}", e.ToString());
+                this.statusServer = new StatusServer(this.currentStatus);
+                try
+                {
+                    this.statusServer.Start();
+                }
+                catch (Exception e)
+                {
+                    Logger.Error("Unable to start status server: {Exception}", e.ToString());
+                }
             }
 
             this.didInitialize = true;
@@ -162,9 +165,9 @@ namespace AutoWaifu2
             }
         }
 
-        protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
+        protected override void OnContentRendered(EventArgs e)
         {
-            base.OnRenderSizeChanged(sizeInfo);
+            base.OnContentRendered(e);
             InitializeViewModel();
         }
 
@@ -237,7 +240,7 @@ namespace AutoWaifu2
 
                         Task.Run(() =>
                         {
-                            Logger.Verbose("Force-quitting existing processes");
+                            Logger.Debug("Force-quitting existing processes");
 
                             DateTime waitStartTime = DateTime.Now;
                             var stopProcessingTask = viewModel.StopProcessing();
@@ -275,7 +278,7 @@ namespace AutoWaifu2
 
                         Task.Run(async () =>
                         {
-                            await viewModel.WaitForProcessingToFinish();
+                            await viewModel.WaitForProcessingToFinish().ConfigureAwait(false);
                             canClose = true;
 
                             Dispatcher.Invoke(() => this.Close());
@@ -444,21 +447,21 @@ namespace AutoWaifu2
                 switch (ViewModel.Settings.FileDragMethod)
                 {
                     case AppSettings.ImportFileMethod.Copy:
-                        Logger.Verbose("Copying files that were dragged onto AutoWaifu");
+                        Logger.Debug("Copying files that were dragged onto AutoWaifu");
                         foreach (var file in files)
                         {
                             var outputPath = AppRelativePath.CreateInput(Path.GetFileName(file));
-                            Logger.Verbose("Copying {@InputFile} to {@OutputFile}", file, outputPath);
+                            Logger.Debug("Copying {@InputFile} to {@OutputFile}", file, outputPath);
                             FileSystemHelper.RecursiveCopy(file, outputPath);
                         }
                         break;
 
                     case AppSettings.ImportFileMethod.Move:
-                        Logger.Verbose("Moving files that were dragged onto AutoWaifu");
+                        Logger.Debug("Moving files that were dragged onto AutoWaifu");
                         foreach (var file in files)
                         {
                             var outputPath = AppRelativePath.CreateInput(Path.GetFileName(file));
-                            Logger.Verbose("Moving {@InputFile} to {@OutputFile}", file, outputPath);
+                            Logger.Debug("Moving {@InputFile} to {@OutputFile}", file, outputPath);
                             FileSystemHelper.RecursiveMove(file, outputPath);
                         }
                         break;
@@ -533,7 +536,7 @@ namespace AutoWaifu2
 
         private async void StopProcessingButton_Click(object sender, RoutedEventArgs e)
         {
-            await ViewModel.StopProcessing();
+            await ViewModel.StopProcessing().ConfigureAwait(false);
         }
 
         private void CopyFullLogButton_Click(object sender, RoutedEventArgs e)

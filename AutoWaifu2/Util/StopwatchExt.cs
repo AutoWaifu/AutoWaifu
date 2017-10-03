@@ -23,7 +23,7 @@ namespace AutoWaifu2
         {
             Stopwatch sw = new Stopwatch();
             sw.Start();
-            await task();
+            await task().ConfigureAwait(false);
             sw.Stop();
 
             return TimeSpan.FromMilliseconds(sw.ElapsedMilliseconds);

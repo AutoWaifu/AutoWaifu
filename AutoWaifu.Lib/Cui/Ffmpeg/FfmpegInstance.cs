@@ -1,4 +1,5 @@
-﻿using Serilog;
+﻿using AutoWaifu.Lib.Jobs;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -9,16 +10,23 @@ using System.Threading.Tasks;
 
 namespace AutoWaifu.Lib.Cui.Ffmpeg
 {
-    public class FfmpegInstance
+    public class FfmpegInstance : Job
     {
-        ILogger Logger = Log.ForContext<FfmpegInstance>();
-
         public FfmpegInstance(string ffmpegPath)
         {
             FfmpegPath = ffmpegPath;
         }
 
         string FfmpegPath { get; }
+        string inputImagePathFormat, outputFilePath;
+
+        public void Configure(string inputImagePathFormat, string outputFilePath)
+        {
+            this.inputImagePathFormat = inputImagePathFormat;
+            this.outputFilePath = outputFilePath;
+        }
+
+        public override ResourceConsumptionLevel ResourceConsumption => ResourceConsumptionLevel.Medium;
 
         public struct RunInfo
         {
@@ -28,7 +36,11 @@ namespace AutoWaifu.Lib.Cui.Ffmpeg
             public bool WasTerminated;
         }
 
+        public RunInfo Result { get; private set; }
+
         public IFfmpegOptions Options;
+
+        ProcessWrapper process;
 
         void RegisterLine(List<string> allLines, string line)
         {
@@ -38,71 +50,74 @@ namespace AutoWaifu.Lib.Cui.Ffmpeg
             }
         }
 
-        public async Task<RunInfo> Start(string inputImagePathFormat, string outputFilePath, Func<bool> shouldTerminateDelegate = null)
+        async Task Start(string inputImagePathFormat, string outputFilePath)
         {
+            Logger.Verbose("Trace");
+
             if (FfmpegPath == null || !File.Exists(FfmpegPath))
-                Logger.Error("Cannot start ffmpeg for {@InputPathFormat} since the specified WaifuCaffe path is invalid! (Either not set or the file doesn't exist!)", inputImagePathFormat);
+                throw new Exception($"Cannot start ffmpeg for {inputImagePathFormat} since the specified WaifuCaffe path is invalid! (Either not set or the file doesn't exist!)");
 
             if (Options == null)
-                Logger.Error("Cannot start ffmpeg for {@InputPathFormat} when Options is null!", inputImagePathFormat);
+                throw new Exception($"Cannot start ffmpeg for {inputImagePathFormat} when Options is null!");
+
+            if (this.process != null)
+                throw new Exception("This ffmpeg instance is already running!");
 
 
             RunInfo runInfo = new RunInfo();
 
             var @params = Options.GetCuiParams(inputImagePathFormat, outputFilePath);
 
+            Logger.Debug("Running ffmpeg with params: {FfmpegParams}", @params);
+
             runInfo.Args = @params;
 
-            ProcessStartInfo psi = new ProcessStartInfo
+            this.process = new ProcessWrapper
             {
-                Arguments = @params,
-                CreateNoWindow = true,
-                FileName = FfmpegPath,
-                WorkingDirectory = Path.GetDirectoryName(FfmpegPath),
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                WindowStyle = ProcessWindowStyle.Hidden,
-                UseShellExecute = false
+                CommandlineArgs = @params,
+                ProgramPath = FfmpegPath
             };
+            
+            var processTask = this.process.Start();
 
-            List<string> outputLines = new List<string>();
+            Logger.Verbose("Started ffmpeg, waiting for exit");
+            
+            while (!processTask.Wait(1))
+                await Task.Delay(10).ConfigureAwait(false);
 
-            var process = new Process();
-            process.StartInfo = psi;
+            Logger.Verbose("ffmpeg stopped, exit code was {FfmpegExitCode}", processTask.Result);
 
-            process.OutputDataReceived += (sender, data) => RegisterLine(outputLines, "Info: " + data.Data);
-            process.ErrorDataReceived += (sender, data) => RegisterLine(outputLines, "Error: " + data.Data);
+            runInfo.ExitCode = processTask.Result;
+            runInfo.OutputStreamData = this.process.AllOutputLines.ToArray();
 
-            process.Start();
+            Result = runInfo;
+            State = JobState.Completed;
+        }
+        
+        
 
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-
-            while (!process.WaitForExit(1))
+        protected override Task DoRun()
+        {
+            if (!(this.Options is FfmpegRawOptions))
             {
-                if (shouldTerminateDelegate != null && shouldTerminateDelegate())
-                    break;
+                if (this.inputImagePathFormat == null)
+                    throw new ArgumentNullException(nameof(this.inputImagePathFormat));
 
-                await Task.Delay(10);
+                if (this.outputFilePath == null)
+                    throw new ArgumentNullException(nameof(this.outputFilePath));
             }
 
-            if (shouldTerminateDelegate == null || !shouldTerminateDelegate())
-            {
-                process.WaitForExit();
-                runInfo.WasTerminated = false;
-            }
-            else
-            {
-                if (!process.HasExited)
-                    process.Kill();
+            return this.Start(this.inputImagePathFormat, this.outputFilePath);
+        }
 
-                runInfo.WasTerminated = true;
-            }
+        protected override async Task DoTerminate()
+        {
+            Logger.Verbose("Trace");
 
-            runInfo.ExitCode = process.ExitCode;
-            runInfo.OutputStreamData = outputLines.ToArray();
+            if (this.process == null)
+                return;
 
-            return runInfo;
+            await this.process.Terminate().ConfigureAwait(false);
         }
     }
 }

@@ -96,6 +96,9 @@ namespace AutoWaifu2
             if (item.RelativeFilePath == null || item.State == TaskItemState.Unknown)
                 throw new InvalidOperationException();
 
+            if (this[item.RelativeFilePath] != null)
+                throw new InvalidOperationException($"A task for the file {item.RelativeFilePath} already exists");
+
             item.StateChanged += Item_StateChanged;
             InvokeAddStateEvent(item, item.State);
 

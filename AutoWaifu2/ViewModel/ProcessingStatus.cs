@@ -29,11 +29,8 @@ namespace AutoWaifu2
 
 
         //  Implicit data from app environment
-        public string TextLog { get; set; }
-        [JsonIgnore]
-        public string TextLogHtml { get; set; }
-        public JArray ParsedJsonLog { get; set; }
-
+        public List<JToken> ParsedJsonLog { get; set; }
+        public int LogSize { get; set; }
         public DateTime StartedAt { get; set; } = DateTime.Now;
         public DateTime? RefreshedAt { get; set; } = null;
 
@@ -49,32 +46,22 @@ namespace AutoWaifu2
             logJson = "[" + logJson.Replace('\n', ',') + "]";
 
             var loadedLog = JsonConvert.DeserializeObject(logJson) as JArray;
+            
+            List<JToken> filteredLog = new List<JToken>(loadedLog.Count);
 
-            ParsedJsonLog = new JArray();
-
-            foreach (var log in loadedLog)
+            foreach (var log in loadedLog.Reverse())
             {
                 string callerMethod = log["Properties"]?["CallerMethodName"]?.ToString();
-                if (callerMethod != null && !callerMethod.Contains("uhttpsharp"))
-                    ParsedJsonLog.Add(log);
+                string level = log["Level"].ToString();
+                if (callerMethod != null && !callerMethod.Contains("uhttpsharp") && level != "Verbose")
+                    filteredLog.Add(log);
+
+                if (filteredLog.Count >= 1000)
+                    break;
             }
 
-            List<string> logLines = new List<string>();
-
-            foreach (var entry in ParsedJsonLog.Reverse())
-            {
-                string logText = entry["RenderedMessage"].ToString();
-                logLines.Add(logText);
-            }
-
-            TextLog = string.Join("\n", logLines);
-
-            TextLogHtml = string.Join("\n", from log in logLines
-                                            select $"<p>{log.Replace("\n", "<br>")}</p>");
-
-            string tabHtml = "<span style='display:inline-block;width:2em;'></span>";
-            TextLogHtml = TextLogHtml.Replace("\t", tabHtml);
-            TextLogHtml = TextLogHtml.Replace("  ", tabHtml);
+            ParsedJsonLog = filteredLog;
+            LogSize = ParsedJsonLog.Count;
 
             RefreshedAt = DateTime.Now;
         }

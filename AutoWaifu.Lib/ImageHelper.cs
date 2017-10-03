@@ -28,31 +28,32 @@ namespace AutoWaifu.Lib
         {
             // https://stackoverflow.com/questions/1922040/resize-an-image-c-sharp
 
-            var destImage = new Bitmap(newSize.WidthInt, newSize.HeightInt);
-
-            using (var image = Image.FromFile(imagePath))
+            using (var destImage = new Bitmap(newSize.WidthInt, newSize.HeightInt))
             {
-                var destRect = new Rectangle(0, 0, newSize.WidthInt, newSize.HeightInt);
-
-                destImage.SetResolution(image.HorizontalResolution, image.VerticalResolution);
-
-                using (var graphics = Graphics.FromImage(destImage))
+                using (var image = Image.FromFile(imagePath))
                 {
-                    graphics.CompositingMode = CompositingMode.SourceCopy;
-                    graphics.CompositingQuality = CompositingQuality.HighQuality;
-                    graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                    graphics.SmoothingMode = SmoothingMode.HighQuality;
-                    graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                    var destRect = new Rectangle(0, 0, newSize.WidthInt, newSize.HeightInt);
 
-                    using (var wrapMode = new ImageAttributes())
+                    destImage.SetResolution(image.HorizontalResolution, image.VerticalResolution);
+
+                    using (var graphics = Graphics.FromImage(destImage))
                     {
-                        wrapMode.SetWrapMode(WrapMode.TileFlipXY);
-                        graphics.DrawImage(image, destRect, 0, 0, image.Width, image.Height, GraphicsUnit.Pixel, wrapMode);
+                        graphics.CompositingMode = CompositingMode.SourceCopy;
+                        graphics.CompositingQuality = CompositingQuality.HighQuality;
+                        graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                        graphics.SmoothingMode = SmoothingMode.HighQuality;
+                        graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+                        using (var wrapMode = new ImageAttributes())
+                        {
+                            wrapMode.SetWrapMode(WrapMode.TileFlipXY);
+                            graphics.DrawImage(image, destRect, 0, 0, image.Width, image.Height, GraphicsUnit.Pixel, wrapMode);
+                        }
                     }
                 }
-            }
 
-            destImage.Save(imagePath);
+                destImage.Save(imagePath);
+            }
         }
     }
 }

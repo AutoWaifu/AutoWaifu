@@ -10,12 +10,11 @@ namespace AutoWaifu.Lib.Waifu2x
 {
     public class TaskQueue
     {
-        List<IWaifuTask> runningTasks = new List<IWaifuTask>();
+        List<WaifuTask> runningTasks = new List<WaifuTask>();
 
         T RunLockedTaskOp<T>(Func<T> op)
         {
-
-                return op();
+            return op();
         }
 
         public string DefaultTempPath { get; set; } = "./tmp";
@@ -26,13 +25,13 @@ namespace AutoWaifu.Lib.Waifu2x
         public string DefaultTempInputPath => Path.Combine(DefaultTempPath, DefaultTempInputFolderName);
         public string DefaultTempOutputPath => Path.Combine(DefaultTempPath, DefaultTempOutputFolderName);
 
-        public List<IWaifuTask> RunningTasks => new List<IWaifuTask>(RunLockedTaskOp(() => this.runningTasks));
+        public List<WaifuTask> RunningTasks => new List<WaifuTask>(RunLockedTaskOp(() => this.runningTasks));
 
         public int QueueLength { get; set; }
 
         public bool CanQueueTask => RunLockedTaskOp(() => runningTasks.Count < QueueLength);
 
-        public bool TryQueueTask<T>(T taskToQueue) where T : IWaifuTask
+        public bool TryQueueTask<T>(T taskToQueue) where T : WaifuTask
         {
             return RunLockedTaskOp(() =>
             {
@@ -45,7 +44,7 @@ namespace AutoWaifu.Lib.Waifu2x
             });
         }
 
-        public bool TryCompleteTask<T>(T queuedTask) where T : IWaifuTask
+        public bool TryCompleteTask<T>(T queuedTask) where T : WaifuTask
         {
             return RunLockedTaskOp(() =>
             {

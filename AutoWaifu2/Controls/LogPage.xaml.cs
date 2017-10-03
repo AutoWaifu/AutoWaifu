@@ -25,24 +25,31 @@ namespace AutoWaifu2
 
         public void LogMessage(LogEventLevel level, string message)
         {
-            Dispatcher.Invoke(() =>
+            try
             {
-                var time = DateTime.Now - _startTime;
+                Dispatcher.Invoke(() =>
+                {
+                    var time = DateTime.Now - _startTime;
 
-                //message = FileSystemHelper.AnonymizeFilePaths(message);
-                message = message.Replace("\\\\", "\\");
-                message = message.Replace("\\\"", "\"");
+                    //message = FileSystemHelper.AnonymizeFilePaths(message);
+                    message = message.Replace("\\\\", "\\");
+                    message = message.Replace("\\\"", "\"");
 
-                Inline textRun = new Run(message) { Foreground = MessageColorMap[level] };
+                    Inline textRun = new Run(message) { Foreground = MessageColorMap[level] };
 
-                if (level == LogEventLevel.Fatal)
-                    textRun = new Bold(textRun);
+                    if (level == LogEventLevel.Fatal)
+                        textRun = new Bold(textRun);
 
-                var para = new Paragraph(textRun);
+                    var para = new Paragraph(textRun);
 
-                TextLogDocument.Blocks.Add(para);
-                LogTextBox.ScrollToEnd();
-            });
+                    TextLogDocument.Blocks.Add(para);
+                    LogTextBox.ScrollToEnd();
+                });
+            }
+            catch
+            {
+
+            }
         }
 
         public Dictionary<LogEventLevel, Brush> MessageColorMap { get; set; } = new Dictionary<LogEventLevel, Brush>

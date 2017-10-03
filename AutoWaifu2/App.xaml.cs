@@ -87,6 +87,17 @@ namespace AutoWaifu2
 
             if (cmd.Any(c => c.ToLower() == "-debug"))
                 Debugger.Launch();
+
+#if DEBUG
+            Logger.Information("RUNNING DEBUG BUILD");
+
+            Logger.Verbose("Test verbose");
+            Logger.Debug("Test debug");
+            Logger.Information("Test info");
+            Logger.Warning("Test warn");
+            Logger.Error("Test error");
+            Logger.Fatal("Test fatal");
+#endif
         }
 
         public static event Action<LogEventLevel, string> Logged;
@@ -102,7 +113,7 @@ namespace AutoWaifu2
 
             e.Handled = true;
 
-            Logger.Error(e.Exception, "An unhandled exception occurred within the Dispatcher");
+            Logger.Debug(e.Exception, "An unhandled exception occurred within the Dispatcher");
             Log.CloseAndFlush();
         }
 
@@ -119,7 +130,7 @@ namespace AutoWaifu2
             var stackTraceProperty = typeof(Exception).GetProperty("StackTrace", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
             //stackTraceProperty.SetValue()
 
-            Logger.Error("An exception occurred: {@Exception}", e);
+            Logger.Debug("An exception occurred: {@Exception}", e);
         }
 
         private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
@@ -127,7 +138,7 @@ namespace AutoWaifu2
             if (IsClosing)
                 return;
 
-            Logger.Error("An unhandled exception occurred: {@Exception}", e.ExceptionObject as Exception);
+            Logger.Debug("An unhandled exception occurred: {@Exception}", e.ExceptionObject as Exception);
             Log.CloseAndFlush();
         }
     }

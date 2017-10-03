@@ -1,5 +1,7 @@
 ﻿using AutoWaifu.Lib.Cui;
-using AutoWaifu.Lib.Cui.WaifuCaffe;
+//using AutoWaifu.Lib.Cui.WaifuCaffe;
+using AutoWaifu.Lib.Cui.WaifuCV;
+using AutoWaifu.Lib.Jobs;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -11,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace AutoWaifu.Lib.Waifu2x.Tasks
 {
-    public class ImageTask : IWaifuTask
+    public class ImageTask : WaifuTask
     {
         public ImageTask(string inputFilePath,
                          string outputFilePath,
@@ -21,10 +23,7 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
             InputFilePath = inputFilePath;
             OutputFilePath = outputFilePath;
         }
-
-        public override IEnumerable<IWaifuTask> SubTasks => Enumerable.Empty<IWaifuTask>();
-
-        public override int NumSubTasks => 0;
+        
 
         public override bool IsRunning => upscaleTask != null;
 
@@ -35,39 +34,40 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
 
         Task<bool> upscaleTask = null;
         bool terminate = false;
+        WaifuCVInstance waifu2xInstance = null;
 
 
 
-        internal WaifuCaffeOptions CustomTaskWaifuCaffeOptions;
-
-
+        internal Waifu2xOptions CustomTaskWaifuCaffeOptions;
+        
 
         protected override Task<bool> Start(string tempInputPath, string tempOutputPath, string waifu2xCaffePath, string ffmpegPath)
         {
+            Logger.Verbose("Trace");
+
             return upscaleTask = Task.Run(async () =>
             {
                 try
                 {
-                    var waifuCaffeInstance = new WaifuCaffeInstance(Path.Combine(waifu2xCaffePath, "waifu2x-caffe-cui.exe"));
+                    this.waifu2xInstance = new WaifuCVInstance(Path.Combine(waifu2xCaffePath, "waifu2x-converter_x64.exe"));
 
                     if (CustomTaskWaifuCaffeOptions != null)
                     {
-                        waifuCaffeInstance.Options = CustomTaskWaifuCaffeOptions;
+                        this.waifu2xInstance.Options = CustomTaskWaifuCaffeOptions;
                     }
                     else
                     {
-                        waifuCaffeInstance.Options = new WaifuCaffeOptions
+                        this.waifu2xInstance.Options = new Waifu2xOptions
                         {
-                            ConvertMode = this.ConvertMode,
-                            ResolutionResolver = this.OutputResolutionResolver,
+                            OutputResolutionResolver = this.OutputResolutionResolver,
                             ProcessPriority = this.ProcessPriority
                         };
                     }
 
-
+                    this.waifu2xInstance.Configure(InputFilePath, OutputFilePath);
 
                     var inputResolution = ImageHelper.GetImageResolution(InputFilePath);
-                    var outputResolution = waifuCaffeInstance.Options.ResolutionResolver.Resolve(inputResolution);
+                    var outputResolution = this.waifu2xInstance.Options.OutputResolutionResolver.Resolve(inputResolution);
 
                     Logger.Debug("Upscaling {ImagePath} from {InputWidth}x{InputHeight} to {OutputWidth}x{OutputHeight}",
                                                 InputFilePath,
@@ -75,16 +75,25 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
                                                 outputResolution.WidthInt, outputResolution.HeightInt);
 
 
+                    //  RUN WAIFU2X
+                    QueueJob(this.waifu2xInstance);
+                    await this.waifu2xInstance;
 
-                    var waifuResult = await waifuCaffeInstance.Start(InputFilePath, OutputFilePath, () => this.terminate);
+                    var waifuResult = this.waifu2xInstance.Result;
 
                     if (this.terminate)
                     {
-                        Logger.Debug("ImageTask for {InputImagePath} has been canceled", InputFilePath);
+                        Logger.Debug("ImageTask for {InputImagePath} has been canceled", InputFilePath); 
                         return false;
                     }
 
-                    Logger.Debug("Ran waifu2x-caffe with params {@WaifuArgs}", waifuResult.Args);
+                    if (this.waifu2xInstance.State == JobState.Faulted)
+                        throw new Exception("The waifu2x upscale job faulted");
+
+                    if (this.waifu2xInstance.State != JobState.Completed)
+                        return false;
+
+                    this.waifu2xInstance = null;
 
                     upscaleTask = null;
 
@@ -95,7 +104,7 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
                         return false;
                     }
 
-                    Logger.Debug("Completed task for {@InputPath} with NoiseLevel={@NoiseLevel}", InputFilePath, waifuCaffeInstance.Options.NoiseLevel);
+                    Logger.Debug("Completed task for {@InputPath} with NoiseLevel={@NoiseLevel}", InputFilePath, this.waifu2xInstance.Options.NoiseLevel);
 
                     return true;
                 }
@@ -105,11 +114,17 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
                     upscaleTask = null;
                     return false;
                 }
+                finally
+                {
+                    this.waifu2xInstance = null;
+                }
             });
         }
 
         protected override Task<bool> Cancel()
         {
+            Logger.Verbose("Trace");
+
             return Task.Run<bool>(async () =>
             {
                 if (!IsRunning)
@@ -118,8 +133,13 @@ namespace AutoWaifu.Lib.Waifu2x.Tasks
                 try
                 {
                     this.terminate = true;
+
+                    if (this.waifu2xInstance != null)
+                        await this.waifu2xInstance.Terminate().ConfigureAwait(false);
+
                     if (upscaleTask != null)
-                        await upscaleTask;
+                        await upscaleTask.ConfigureAwait(false);
+
                     return true;
                 }
                 catch

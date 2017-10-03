@@ -326,7 +326,9 @@
     </PublishFile>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Web\index.html" />
+    <EmbeddedResource Include="Web\index.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
