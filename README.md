@@ -6,8 +6,17 @@ Official website: http://autowaifu.azurewebsites.net
 Automatically convert your large collections of manga/etc to any scale or size with waifu2x!
 
 ## How it works
-AutoWaifu monitors an input folder for any changes and loads existing files into its list of tasks. When there are tasks, AutoWaifu launches waifu2x-caffe on one of the input images and waits for waifu2x-caffe to finish. The task won't run if there is already a file in the Output folder with the same name. File names and folder structure are preserved.
+AutoWaifu monitors an input folder for any changes and loads new files into its list of tasks, which stores the upscaled files in an output folder. Tasks can vary depending on the input file and user settings. There are generally 2 types of tasks:
 
+- Image upscale
+- Animation upscale
+
+Image tasks use waifu2x-caffe to upscale an image to the desired resolution. This takes into account: Upscale type (percent, megapixels, max-width/height), denoising level, method (CPU, GPU, cuDNN).
+
+Animation tasks consist of extraction, upscaling, and compilation steps. Extraction can use ImageMagick or ffmpeg. Ffmpeg is generally prefered since it has the most stable behavior. The upscaling step defers to multiple image tasks, which can be ran in parallel if the threads setting is high enough. Compilation uses ffmpeg or ImageMagick for GIFs, and only ffmpeg for videos.
+
+### Server/Headless operation
+AutoWaifu can host a basic web server that displays its processing state for remote viewing, and also run without displaying an interface (headless mode). These are enabled by running AutoWaifu with the commandline options `-status-server` and `-headless`, respectively. The server is available on port 4444.
 
 ## TODOs
 
